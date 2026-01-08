@@ -16,7 +16,7 @@ from pdf_proforma import genera_proforma_pdf
 
 load_dotenv()
 
-APP_PASSWORD = os.getenv("APP_PASSWORD", "demo123")
+APP_PASSWORD = os.getenv("APP_PASSWORD", "nictom23")
 AGENCY_NAME = os.getenv("AGENCY_NAME", "AMG Ho.Re.Ca Business & Strategy")
 LOGO_PATH = str(Path(__file__).resolve().parent / "assets" / "logo.jpg")
 GENERATED_DIR = Path(__file__).resolve().parent / "generated" / "proforme"
