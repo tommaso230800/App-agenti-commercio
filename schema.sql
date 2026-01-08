@@ -162,6 +162,25 @@ CREATE TABLE IF NOT EXISTS ordini_righe (
     FOREIGN KEY (prodotto_id) REFERENCES prodotti(id)
 );
 
+-- ============================================================
+-- PREFILL: ultimi prezzi/quantità usati dal cliente per prodotto
+-- (per precompilare l'ordine successivo, sempre modificabile)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS cliente_prodotto_pref (
+    cliente_id TEXT NOT NULL,
+    azienda_id TEXT NOT NULL,
+    prodotto_id TEXT NOT NULL,
+    prezzo_unitario REAL NOT NULL,
+    sconto_riga REAL DEFAULT 0,
+    quantita_cartoni INTEGER DEFAULT 0,
+    quantita_pezzi INTEGER DEFAULT 0,
+    updated_at TEXT,
+    PRIMARY KEY (cliente_id, azienda_id, prodotto_id),
+    FOREIGN KEY (cliente_id) REFERENCES clienti(id),
+    FOREIGN KEY (azienda_id) REFERENCES aziende(id),
+    FOREIGN KEY (prodotto_id) REFERENCES prodotti(id)
+);
+
 -- Tabella VISITE (Storico visite clienti)
 CREATE TABLE IF NOT EXISTS visite (
     id TEXT PRIMARY KEY,

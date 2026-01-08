@@ -288,6 +288,9 @@ def get_prodotti_acquistati_cliente(cliente_id: str, azienda_id: str = None) -> 
 
 def save_prodotto(data: Dict) -> str:
     """Salva o aggiorna un prodotto"""
+    # Regola fissa: 1 cartone = 6 pezzi
+    if data is not None:
+        data['pezzi_per_cartone'] = 6
     conn = get_connection()
     try:
         if 'id' in data and data['id']:
@@ -472,62 +475,152 @@ def get_ordine(ordine_id: str) -> Optional[Dict]:
 
 
 def save_ordine(testata: Dict, righe: List[Dict]) -> str:
-    """Salva un ordine completo (testata + righe)"""
+    """Salva un ordine completo (testata + righe).
+
+    Fix importanti:
+    - calcola automaticamente prezzo_finale/importo_riga se mancanti
+    - filtra solo le colonne effettive della tabella (evita errori con campi UI)
+    - aggiorna una tabella di prefill (cliente_prodotto_pref) per ricordare prezzo/quantità dell'ultimo ordine
+    """
     conn = get_connection()
     try:
+        conn.execute("BEGIN")
+
+        # colonne ammesse per evitare mismatch
+        allowed_testata = {
+            'id','numero','data_ordine','azienda_id','cliente_id','pagamento','consegna_tipo',
+            'totale_pezzi','totale_cartoni','imponibile','sconto_chiusura','totale_finale',
+            'stato','note','data_invio','data_conferma','data_evasione','created_at','updated_at'
+        }
+        allowed_riga = {
+            'id','ordine_id','prodotto_id','quantita_cartoni','quantita_pezzi','quantita_totale',
+            'prezzo_unitario','sconto_riga','prezzo_finale','importo_riga','posizione','note','created_at'
+        }
+
         if 'id' in testata and testata['id']:
             ordine_id = testata['id']
             # Update testata
             fields = []
             values = []
             for key, value in testata.items():
-                if key != 'id' and key != 'created_at' and not key.startswith('azienda_') and not key.startswith('cliente_'):
+                if key in allowed_testata and key not in ('id','created_at','updated_at'):
                     fields.append(f"{key} = ?")
                     values.append(value)
             fields.append("updated_at = ?")
             values.append(datetime.now().isoformat())
             values.append(ordine_id)
-            
             query = f"UPDATE ordini SET {', '.join(fields)} WHERE id = ?"
             conn.execute(query, values)
-            
+
             # Elimina vecchie righe
             conn.execute("DELETE FROM ordini_righe WHERE ordine_id = ?", (ordine_id,))
         else:
             # Insert testata
             ordine_id = generate_id()
+            now = datetime.now().isoformat()
+            testata = dict(testata)
             testata['id'] = ordine_id
-            testata['created_at'] = datetime.now().isoformat()
-            testata['updated_at'] = datetime.now().isoformat()
-            
-            # Rimuovi campi non della tabella
-            insert_data = {k: v for k, v in testata.items() 
-                         if not k.startswith('azienda_') and not k.startswith('cliente_')}
-            
+            testata['created_at'] = now
+            testata['updated_at'] = now
+
+            insert_data = {k: v for k, v in testata.items() if k in allowed_testata}
             fields = list(insert_data.keys())
             placeholders = ', '.join(['?' for _ in fields])
             query = f"INSERT INTO ordini ({', '.join(fields)}) VALUES ({placeholders})"
             conn.execute(query, list(insert_data.values()))
-        
+
         # Insert righe
         for i, riga in enumerate(righe):
-            riga_id = generate_id()
-            riga['id'] = riga_id
-            riga['ordine_id'] = ordine_id
-            riga['posizione'] = i + 1
-            riga['created_at'] = datetime.now().isoformat()
-            
-            # Rimuovi campi non della tabella
-            insert_riga = {k: v for k, v in riga.items() 
-                         if not k.startswith('prodotto_') or k == 'prodotto_id'}
-            
+            r = dict(riga)
+            r['id'] = generate_id()
+            r['ordine_id'] = ordine_id
+            r['posizione'] = i + 1
+            r['created_at'] = datetime.now().isoformat()
+
+            # normalizza quantità
+            r['quantita_cartoni'] = int(r.get('quantita_cartoni') or 0)
+            r['quantita_pezzi'] = int(r.get('quantita_pezzi') or 0)
+            r['quantita_totale'] = int(r.get('quantita_totale') or 0)
+
+            prezzo_unitario = float(r.get('prezzo_unitario') or 0)
+            sconto = float(r.get('sconto_riga') or 0)
+            if r.get('prezzo_finale') is None:
+                r['prezzo_finale'] = prezzo_unitario * (1 - sconto / 100)
+            if r.get('importo_riga') is None:
+                r['importo_riga'] = float(r['prezzo_finale']) * float(r['quantita_totale'])
+
+            insert_riga = {k: v for k, v in r.items() if k in allowed_riga}
             fields = list(insert_riga.keys())
             placeholders = ', '.join(['?' for _ in fields])
             query = f"INSERT INTO ordini_righe ({', '.join(fields)}) VALUES ({placeholders})"
             conn.execute(query, list(insert_riga.values()))
-        
+
+        # Aggiorna prefill per ordine successivo
+        try:
+            cliente_id = testata.get('cliente_id')
+            azienda_id = testata.get('azienda_id')
+            if cliente_id and azienda_id:
+                _upsert_cliente_prodotto_pref(conn, cliente_id, azienda_id, righe)
+        except Exception:
+            # non blocchiamo il salvataggio ordine se fallisce il prefill
+            pass
+
         conn.commit()
         return ordine_id
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        raise
+    finally:
+        conn.close()
+
+
+def _upsert_cliente_prodotto_pref(conn: sqlite3.Connection, cliente_id: str, azienda_id: str, righe: List[Dict]) -> None:
+    """Upsert delle preferenze (ultimo prezzo/quantità) per ogni prodotto del cliente."""
+    now = datetime.now().isoformat()
+    for r in righe:
+        prodotto_id = r.get('prodotto_id')
+        if not prodotto_id:
+            continue
+        prezzo_unitario = float(r.get('prezzo_unitario') or 0)
+        sconto = float(r.get('sconto_riga') or 0)
+        qc = int(r.get('quantita_cartoni') or 0)
+        qp = int(r.get('quantita_pezzi') or 0)
+
+        conn.execute(
+            """
+            INSERT INTO cliente_prodotto_pref (cliente_id, azienda_id, prodotto_id, prezzo_unitario, sconto_riga, quantita_cartoni, quantita_pezzi, updated_at)
+            VALUES (?,?,?,?,?,?,?,?)
+            ON CONFLICT(cliente_id, azienda_id, prodotto_id)
+            DO UPDATE SET
+                prezzo_unitario=excluded.prezzo_unitario,
+                sconto_riga=excluded.sconto_riga,
+                quantita_cartoni=excluded.quantita_cartoni,
+                quantita_pezzi=excluded.quantita_pezzi,
+                updated_at=excluded.updated_at
+            """,
+            (cliente_id, azienda_id, prodotto_id, prezzo_unitario, sconto, qc, qp, now)
+        )
+
+
+def get_cliente_prodotti_pref(cliente_id: str, azienda_id: str) -> Dict[str, Dict]:
+    """Ritorna dict {prodotto_id: pref} per precompilare l'ordine successivo."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT prodotto_id, prezzo_unitario, sconto_riga, quantita_cartoni, quantita_pezzi, updated_at
+            FROM cliente_prodotto_pref
+            WHERE cliente_id = ? AND azienda_id = ?
+            """,
+            (cliente_id, azienda_id)
+        ).fetchall()
+        out: Dict[str, Dict] = {}
+        for r in rows:
+            out[r['prodotto_id']] = dict(r)
+        return out
     finally:
         conn.close()
 

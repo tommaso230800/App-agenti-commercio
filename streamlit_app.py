@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 # Import moduli locali
 import db
 from pdf_ordine import genera_pdf_ordine_download
+from email_sender import send_email_with_attachment
 
 # ============================================
 # CONFIGURAZIONE PAGINA
@@ -1037,7 +1038,16 @@ def render_form_prodotto(azienda_id: str):
             nome = st.text_input("Nome *", value=prodotto.get('nome', '') if prodotto else '')
         with col2:
             prezzo = st.number_input("Prezzo €", min_value=0.0, value=float(prodotto.get('prezzo_listino', 0)) if prodotto else 0.0, step=0.01)
-            pezzi_cartone = st.number_input("Pezzi/Cartone", min_value=1, value=int(prodotto.get('pezzi_per_cartone', 1)) if prodotto else 1)
+            # Regola: 1 cartone = 6 pezzi (fisso)
+            pezzi_cartone = 6
+            st.number_input(
+                "Pezzi/Cartone (fisso)",
+                min_value=1,
+                value=pezzi_cartone,
+                step=1,
+                disabled=True,
+                help="In questa app il cartone è sempre composto da 6 pezzi."
+            )
         
         descrizione = st.text_input("Descrizione", value=prodotto.get('descrizione', '') if prodotto else '')
         disponibile = st.checkbox("Disponibile", value=prodotto.get('disponibile', True) if prodotto else True)
@@ -1058,7 +1068,7 @@ def render_form_prodotto(azienda_id: str):
                     'nome': nome,
                     'descrizione': descrizione,
                     'prezzo_listino': prezzo,
-                    'pezzi_per_cartone': pezzi_cartone,
+                    'pezzi_per_cartone': 6,
                     'disponibile': 1 if disponibile else 0
                 }
                 if st.session_state.editing_id:
@@ -1439,11 +1449,20 @@ def render_step_articoli():
     
     # Prodotti azienda
     prodotti = db.get_prodotti(azienda_id=st.session_state.ordine_azienda_id, search=search if search else None)
+
+    # Prefill: ultimo prezzo/quantità usati da questo cliente per prodotto
+    prefs = {}
+    if st.session_state.ordine_cliente_id and st.session_state.ordine_azienda_id:
+        try:
+            prefs = db.get_cliente_prodotti_pref(st.session_state.ordine_cliente_id, st.session_state.ordine_azienda_id)
+        except Exception:
+            prefs = {}
     
     st.markdown(f"**{len(prodotti)} prodotti** · {len(st.session_state.ordine_righe)} nel carrello")
     
     for prod in prodotti:
         in_cart = next((r for r in st.session_state.ordine_righe if r['prodotto_id'] == prod['id']), None)
+        pref = prefs.get(prod['id']) if not in_cart else None
         
         st.markdown(f"""
             <div class="product-row {'in-cart' if in_cart else ''}">
@@ -1457,19 +1476,58 @@ def render_step_articoli():
             </div>
         """, unsafe_allow_html=True)
         
-        col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+        col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 1])
         with col1:
-            cartoni = st.number_input("Cartoni", min_value=0, value=in_cart['quantita_cartoni'] if in_cart else 0, key=f"cart_{prod['id']}", label_visibility="collapsed")
+            cartoni = st.number_input(
+                "Cartoni",
+                min_value=0,
+                step=1,
+                value=int(in_cart['quantita_cartoni']) if in_cart else int((pref or {}).get('quantita_cartoni', 0) or 0),
+                key=f"cart_{prod['id']}",
+                label_visibility="collapsed",
+            )
         with col2:
-            pezzi = st.number_input("Pezzi", min_value=0, value=in_cart['quantita_pezzi'] if in_cart else 0, key=f"pz_{prod['id']}", label_visibility="collapsed")
+            pezzi = st.number_input(
+                "Pezzi",
+                min_value=0,
+                step=1,
+                value=int(in_cart['quantita_pezzi']) if in_cart else int((pref or {}).get('quantita_pezzi', 0) or 0),
+                key=f"pz_{prod['id']}",
+                label_visibility="collapsed",
+            )
         with col3:
-            sconto = st.number_input("Sc.%", min_value=0.0, max_value=100.0, value=in_cart['sconto_riga'] if in_cart else 0.0, key=f"sc_{prod['id']}", label_visibility="collapsed")
+            # Prezzo modificabile nell'ordine (override rispetto al listino)
+            prezzo_unitario = st.number_input(
+                "Prezzo €",
+                min_value=0.0,
+                step=0.01,
+                value=float(in_cart['prezzo_unitario']) if in_cart else float((pref or {}).get('prezzo_unitario') or prod['prezzo_listino']),
+                key=f"pr_{prod['id']}",
+                label_visibility="collapsed",
+            )
         with col4:
-            if st.button("+" if not in_cart else "✓", key=f"add_{prod['id']}"):
+            sconto = st.number_input(
+                "Sc.%",
+                min_value=0.0,
+                max_value=100.0,
+                step=0.5,
+                value=float(in_cart['sconto_riga']) if in_cart else float((pref or {}).get('sconto_riga', 0) or 0.0),
+                key=f"sc_{prod['id']}",
+                label_visibility="collapsed",
+            )
+
+        # Calcolo live: totale pezzi = cartoni*6 + pezzi
+        qta_tot_live = (int(cartoni) * int(prod['pezzi_per_cartone'])) + int(pezzi)
+        if pref and not in_cart:
+            st.caption(f"Prefill ultimo ordine: cartoni {pref.get('quantita_cartoni',0)} · pezzi {pref.get('quantita_pezzi',0)} · prezzo {format_currency(pref.get('prezzo_unitario',0))}")
+        st.caption(f"Totale pezzi: **{qta_tot_live}** (cartone = {int(prod['pezzi_per_cartone'])} pz)")
+
+        with col5:
+            if st.button("+" if not in_cart else "↻", key=f"add_{prod['id']}"):
                 if cartoni > 0 or pezzi > 0:
                     qta_tot = (cartoni * prod['pezzi_per_cartone']) + pezzi
-                    prezzo_scontato = prod['prezzo_listino'] * (1 - sconto/100)
-                    importo = qta_tot * prezzo_scontato
+                    prezzo_finale = float(prezzo_unitario) * (1 - float(sconto)/100)
+                    importo = qta_tot * prezzo_finale
                     
                     nuova_riga = {
                         'prodotto_id': prod['id'],
@@ -1479,8 +1537,9 @@ def render_step_articoli():
                         'quantita_cartoni': cartoni,
                         'quantita_pezzi': pezzi,
                         'quantita_totale': qta_tot,
-                        'prezzo_unitario': prod['prezzo_listino'],
+                        'prezzo_unitario': float(prezzo_unitario),
                         'sconto_riga': sconto,
+                        'prezzo_finale': float(prezzo_finale),
                         'importo_riga': importo
                     }
                     
@@ -1507,16 +1566,37 @@ def render_step_dettagli():
     with col2:
         st.markdown("**Dettagli Ordine**")
     
-    pagamento = st.selectbox("Pagamento", ["Bonifico 30gg", "Bonifico 60gg", "Rimessa diretta", "Contanti"])
-    consegna = st.selectbox("Consegna", ["Franco destino", "Franco partenza", "Ritiro"])
-    sconto_chiusura = st.number_input("Sconto Chiusura %", min_value=0.0, max_value=50.0, value=0.0)
-    note = st.text_area("Note ordine")
+    pagamento = st.selectbox("Pagamento", ["Bonifico 30gg", "Bonifico 60gg", "Rimessa diretta", "Contanti"],
+                            index=0)
+    consegna = st.selectbox("Consegna", ["Franco destino", "Franco partenza", "Ritiro"],
+                           index=0)
+    sconto_chiusura = st.number_input(
+        "Sconto Chiusura %",
+        min_value=0.0,
+        max_value=50.0,
+        value=float(st.session_state.ordine_dettagli.get('sconto_chiusura', 0) or 0.0)
+    )
+    note = st.text_area("Note ordine", value=st.session_state.ordine_dettagli.get('note', '') or '')
+
+    # Email invio PDF (opzionale)
+    default_email = st.session_state.ordine_dettagli.get('email_destinatario')
+    if not default_email and st.session_state.ordine_cliente_id:
+        try:
+            default_email = (db.get_cliente(st.session_state.ordine_cliente_id) or {}).get('email', '')
+        except Exception:
+            default_email = ''
+    email_destinatario = st.text_input(
+        "📧 Invia conferma/proforma PDF a (opzionale)",
+        value=default_email or '',
+        placeholder="es. acquisti@cliente.it"
+    )
     
     st.session_state.ordine_dettagli = {
         'pagamento': pagamento,
         'consegna_tipo': consegna,
         'sconto_chiusura': sconto_chiusura,
-        'note': note
+        'note': note,
+        'email_destinatario': email_destinatario
     }
     
     if st.button("Avanti →", type="primary", use_container_width=True):
@@ -1569,10 +1649,26 @@ def render_step_conferma():
 
 
 def salva_ordine(stato: str):
-    """Salva l'ordine"""
+    """Salva l'ordine.
+
+    - Salva sempre su DB
+    - Se stato=inviato: genera PDF e, se inserita email, invia allegato
+    - Aggiorna anche la tabella prefill (ultimo prezzo/quantità per cliente/prodotto) tramite db.save_ordine
+    """
+    # Validazioni base
+    if not st.session_state.ordine_azienda_id:
+        st.error("Seleziona un fornitore (azienda) prima di salvare.")
+        return
+    if not st.session_state.ordine_cliente_id:
+        st.error("Seleziona un cliente prima di salvare.")
+        return
+    if not st.session_state.ordine_righe:
+        st.error("Aggiungi almeno un articolo all'ordine.")
+        return
+
     totali = calcola_totali_ordine()
     det = st.session_state.ordine_dettagli
-    
+
     testata = {
         'numero': db.get_prossimo_numero_ordine(),
         'data_ordine': date.today().isoformat(),
@@ -1588,15 +1684,75 @@ def salva_ordine(stato: str):
         'stato': stato,
         'note': det.get('note'),
     }
-    
-    db.save_ordine(testata, st.session_state.ordine_righe)
-    
-    msg = "✅ Ordine INVIATO!" if stato == 'inviato' else "💾 Bozza salvata"
-    st.success(msg)
-    
-    reset_ordine()
-    navigate_to('ordini')
-    st.rerun()
+
+    try:
+        ordine_id = db.save_ordine(testata, st.session_state.ordine_righe)
+    except Exception as e:
+        st.error(f"Errore nel salvataggio ordine: {e}")
+        return
+
+    # Bozza
+    if stato != 'inviato':
+        st.success("💾 Bozza salvata")
+        reset_ordine()
+        navigate_to('ordini')
+        st.rerun()
+
+    # INVIATO: PDF + email
+    st.success("✅ Ordine INVIATO e salvato nel database!")
+
+    pdf_bytes, filename = None, None
+    try:
+        pdf_bytes, filename = genera_pdf_ordine_download(ordine_id)
+    except Exception as e:
+        st.error(f"Errore generazione PDF: {e}")
+
+    if pdf_bytes and filename:
+        st.download_button(
+            "⬇️ Scarica Conferma/Proforma (PDF)",
+            pdf_bytes,
+            file_name=filename,
+            mime="application/pdf",
+            use_container_width=True,
+        )
+
+    email_dest = (det or {}).get('email_destinatario')
+    if email_dest:
+        if not pdf_bytes:
+            st.warning("PDF non disponibile: impossibile inviare email con allegato.")
+        else:
+            try:
+                cliente = db.get_cliente(testata['cliente_id']) or {}
+                send_email_with_attachment(
+                    to_email=email_dest,
+                    subject=f"Conferma Ordine {testata['numero']} - {cliente.get('ragione_sociale','Cliente')}",
+                    body=(
+                        f"Buongiorno,\n\n"
+                        f"in allegato la conferma/proforma dell'ordine {testata['numero']} del {testata['data_ordine']}.\n\n"
+                        f"Cordiali saluti"
+                    ),
+                    attachment_bytes=pdf_bytes,
+                    attachment_filename=filename or "ordine.pdf",
+                    mime_type="application/pdf",
+                )
+                st.success(f"📧 Email inviata a: {email_dest}")
+            except Exception as e:
+                st.error(f"⚠️ Ordine salvato, ma invio email fallito: {e}")
+    else:
+        st.info("📧 Email non inserita: puoi inviare il PDF più tardi dalla pagina Ordini")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📋 Vai a Ordini", type="primary", use_container_width=True):
+            reset_ordine()
+            navigate_to('ordini')
+            st.rerun()
+    with col2:
+        if st.button("➕ Nuovo Ordine", use_container_width=True):
+            reset_ordine()
+            navigate_to('nuovo_ordine')
+            st.rerun()
+    return
 
 
 # ============================================

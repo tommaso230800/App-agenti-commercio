@@ -26,6 +26,17 @@ Stile e flusso identico a Order Sender.
 
 - **Stati ordine**: Bozza 🟠 → Inviato 🟢 → Confermato 🔵 → Evaso ✅
 
+✅ **Cartone fisso = 6 pezzi**
+- In anagrafica prodotti il cartone è sempre 6 pezzi (regola fissa)
+- In ordine puoi inserire sia **cartoni** che **pezzi singoli** (es: 3 bottiglie)
+
+✅ **Prezzo modificabile in ordine (override listino)**
+- In Step 4 "Articoli" puoi cambiare il prezzo unitario per ogni riga, anche se il prodotto ha un listino di default
+
+✅ **Prefill ordine successivo (prezzo + quantità)**
+- Dopo che un cliente ordina un prodotto, il prossimo ordine precompila automaticamente **prezzo, cartoni e pezzi** con gli ultimi valori usati
+- Tutto resta sempre modificabile
+
 ### 📄 PDF Ordine Professionale
 - Documento commerciale completo
 - Layout professionale con logo
@@ -34,6 +45,12 @@ Stile e flusso identico a Order Sender.
 - Condizioni di vendita
 - Spazio firme
 - Pronto per invio a cliente/casa madre
+
+### 📧 Invio email automatico (opzionale)
+Se in Step 5 inserisci l'email destinatario, quando premi **Invia Ordine** il sistema:
+- salva ordine nel database
+- genera il PDF
+- invia il PDF via email (se SMTP configurato)
 
 ### 📊 Dashboard Business
 - KPI principali (clienti, ordini, fatturato)
@@ -83,6 +100,27 @@ streamlit run streamlit_app.py
 ### Accesso
 - **URL**: http://localhost:8501
 - **Password**: `demo123`
+
+---
+
+## 📧 Configurazione SMTP (per invio PDF automatico)
+
+Puoi configurare l'invio email impostando variabili d'ambiente (locale) oppure **Streamlit Secrets** (cloud).
+
+Esempio (Gmail - password per app):
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=tuo@gmail.com
+SMTP_PASS=PASSWORD_APP
+SMTP_FROM=tuo@gmail.com
+```
+
+Note:
+- Porta **465** = SSL (consigliata)
+- Porta **587** = STARTTLS
+- Se SMTP non è configurato, l'ordine viene comunque salvato e il PDF resta scaricabile
 
 ---
 
