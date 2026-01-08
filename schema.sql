@@ -83,7 +83,8 @@ CREATE TABLE IF NOT EXISTS prodotti (
     sottocategoria TEXT,
     -- Unità e confezioni
     unita_misura TEXT DEFAULT 'PZ',  -- PZ, KG, LT, etc.
-    pezzi_per_cartone INTEGER DEFAULT 1,
+    -- In questa app: 1 cartone = 6 pezzi (regola fissa)
+    pezzi_per_cartone INTEGER DEFAULT 6,
     peso_unitario REAL,
     volume_unitario REAL,
     -- Prezzi

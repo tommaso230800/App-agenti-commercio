@@ -953,7 +953,7 @@ def render_azienda_prodotti():
                 st.markdown(f"""
                     <div class="product-row">
                         <div class="product-name">{prod['nome']} {disp}</div>
-                        <div class="product-info">Cod: {prod['codice']} · {prod['pezzi_per_cartone']} pz/cartone</div>
+                        <div class="product-info">Cod: {prod['codice']} · 6 pz/cartone</div>
                         <div class="product-price">{format_currency(prod['prezzo_listino'])}</div>
                     </div>
                 """, unsafe_allow_html=True)
@@ -1469,7 +1469,7 @@ def render_step_articoli():
                 <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
                     <div>
                         <span class="product-name">{prod['nome']}</span>
-                        <div class="product-info">Cod: {prod['codice']} · {prod['pezzi_per_cartone']} pz/cart</div>
+                        <div class="product-info">Cod: {prod['codice']} · 6 pz/cart</div>
                     </div>
                     <span class="product-price">{format_currency(prod['prezzo_listino'])}</span>
                 </div>
@@ -1516,16 +1516,16 @@ def render_step_articoli():
                 label_visibility="collapsed",
             )
 
-        # Calcolo live: totale pezzi = cartoni*6 + pezzi
-        qta_tot_live = (int(cartoni) * int(prod['pezzi_per_cartone'])) + int(pezzi)
+        # Calcolo live: totale pezzi = cartoni*6 + pezzi (regola fissa)
+        qta_tot_live = (int(cartoni) * 6) + int(pezzi)
         if pref and not in_cart:
             st.caption(f"Prefill ultimo ordine: cartoni {pref.get('quantita_cartoni',0)} · pezzi {pref.get('quantita_pezzi',0)} · prezzo {format_currency(pref.get('prezzo_unitario',0))}")
-        st.caption(f"Totale pezzi: **{qta_tot_live}** (cartone = {int(prod['pezzi_per_cartone'])} pz)")
+        st.caption(f"Totale pezzi: **{qta_tot_live}** (cartone = 6 pz)")
 
         with col5:
             if st.button("+" if not in_cart else "↻", key=f"add_{prod['id']}"):
                 if cartoni > 0 or pezzi > 0:
-                    qta_tot = (cartoni * prod['pezzi_per_cartone']) + pezzi
+                    qta_tot = (int(cartoni) * 6) + int(pezzi)
                     prezzo_finale = float(prezzo_unitario) * (1 - float(sconto)/100)
                     importo = qta_tot * prezzo_finale
                     
@@ -1533,10 +1533,10 @@ def render_step_articoli():
                         'prodotto_id': prod['id'],
                         'prodotto_codice': prod['codice'],
                         'prodotto_nome': prod['nome'],
-                        'pezzi_per_cartone': prod['pezzi_per_cartone'],
-                        'quantita_cartoni': cartoni,
-                        'quantita_pezzi': pezzi,
-                        'quantita_totale': qta_tot,
+                        'pezzi_per_cartone': 6,
+                        'quantita_cartoni': int(cartoni),
+                        'quantita_pezzi': int(pezzi),
+                        'quantita_totale': int(qta_tot),
                         'prezzo_unitario': float(prezzo_unitario),
                         'sconto_riga': sconto,
                         'prezzo_finale': float(prezzo_finale),
@@ -1614,30 +1614,28 @@ def render_step_conferma():
     with col2:
         st.markdown("**Riepilogo Ordine**")
     
-    azienda = db.get_azienda(st.session_state.ordine_azienda_id)
-    cliente = db.get_cliente(st.session_state.ordine_cliente_id)
+    azienda = db.get_azienda(st.session_state.ordine_azienda_id) if st.session_state.ordine_azienda_id else None
+    cliente = db.get_cliente(st.session_state.ordine_cliente_id) if st.session_state.ordine_cliente_id else None
     totali = calcola_totali_ordine()
     
-    st.markdown(f"""
-        <div class="card">
-            <p><strong>Fornitore:</strong> {azienda['nome']}</p>
-            <p><strong>Cliente:</strong> {cliente['ragione_sociale']}</p>
-            <p><strong>Articoli:</strong> {len(st.session_state.ordine_righe)}</p>
-        </div>
-    """, unsafe_allow_html=True)
+    # Riepilogo testata (no HTML fragile su mobile)
+    st.markdown("#### Riepilogo")
+    st.write(f"Fornitore: {azienda['nome'] if azienda else '—'}")
+    st.write(f"Cliente: {cliente['ragione_sociale'] if cliente else '—'}")
+    st.write(f"Articoli: {len(st.session_state.ordine_righe)}")
     
     # Articoli
     for riga in st.session_state.ordine_righe:
         st.markdown(f"- {riga['prodotto_nome']}: {riga['quantita_cartoni']} cart. + {riga['quantita_pezzi']} pz = **{format_currency(riga['importo_riga'])}**")
     
-    st.markdown(f"""
-        <div class="card" style="background:#f0fdf4;border-color:#10b981;">
-            <p style="font-size:0.9rem;"><strong>Totale Pezzi:</strong> {totali['totale_pezzi']}</p>
-            <p style="font-size:0.9rem;"><strong>Imponibile:</strong> {format_currency(totali['imponibile'])}</p>
-            {'<p style="font-size:0.9rem;"><strong>Sconto:</strong> ' + str(totali["sconto_chiusura"]) + '%</p>' if totali['sconto_chiusura'] > 0 else ''}
-            <p style="font-size:1.25rem;font-weight:700;color:#1e3a5f;margin-top:0.5rem;">TOTALE: {format_currency(totali['totale_finale'])}</p>
-        </div>
-    """, unsafe_allow_html=True)
+    # Totali (render stabile su iOS)
+    with st.container():
+        st.success(
+            f"Totale pezzi: {totali['totale_pezzi']}\n\n"
+            f"Imponibile: {format_currency(totali['imponibile'])}\n\n"
+            + (f"Sconto chiusura: {totali['sconto_chiusura']}%\n\n" if totali['sconto_chiusura'] > 0 else "")
+            + f"TOTALE: {format_currency(totali['totale_finale'])}"
+        )
     
     col1, col2 = st.columns(2)
     with col1:
@@ -1655,7 +1653,18 @@ def salva_ordine(stato: str):
     - Se stato=inviato: genera PDF e, se inserita email, invia allegato
     - Aggiorna anche la tabella prefill (ultimo prezzo/quantità per cliente/prodotto) tramite db.save_ordine
     """
-    # Validazioni base
+    # Validazioni base + fallback (se per qualche motivo l'azienda non è in sessione)
+    if not st.session_state.ordine_azienda_id:
+        # Prova a inferire l'azienda dal primo prodotto in carrello
+        try:
+            if st.session_state.ordine_righe:
+                pid = st.session_state.ordine_righe[0].get('prodotto_id')
+                if pid:
+                    prod = db.get_prodotto(pid)
+                    if prod and prod.get('azienda_id'):
+                        st.session_state.ordine_azienda_id = prod['azienda_id']
+        except Exception:
+            pass
     if not st.session_state.ordine_azienda_id:
         st.error("Seleziona un fornitore (azienda) prima di salvare.")
         return
@@ -1664,6 +1673,11 @@ def salva_ordine(stato: str):
         return
     if not st.session_state.ordine_righe:
         st.error("Aggiungi almeno un articolo all'ordine.")
+        return
+
+    # verifica che l'azienda esista davvero
+    if not db.get_azienda(st.session_state.ordine_azienda_id):
+        st.error("Fornitore non valido. Torna indietro e seleziona l'azienda.")
         return
 
     totali = calcola_totali_ordine()

@@ -30,6 +30,15 @@ def init_db():
         with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
             schema = f.read()
         conn.executescript(schema)
+
+        # --- MIGRAZIONI/REGOLA COMMERCIALE ---
+        # Cartone fisso: 6 pezzi per tutti i prodotti.
+        # (Serve anche per database già esistenti creati con default=1)
+        try:
+            conn.execute("UPDATE prodotti SET pezzi_per_cartone = 6 WHERE pezzi_per_cartone IS NULL OR pezzi_per_cartone != 6")
+        except Exception:
+            pass
+
         conn.commit()
     finally:
         conn.close()
