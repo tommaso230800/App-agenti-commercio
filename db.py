@@ -6,9 +6,8 @@ Database Manager - Gestione completa SQLite
 import sqlite3
 import os
 from datetime import datetime, date
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any
 import uuid
-import json
 
 # Path del database
 DB_PATH = os.path.join(os.path.dirname(__file__), 'portale_agente.db')
@@ -31,7 +30,7 @@ def init_db():
             schema = f.read()
         conn.executescript(schema)
 
-        # --- MIGRAZIONI LEGACY (DB già esistenti su Streamlit Cloud) ---
+        # --- MIGRAZIONI LEGACY (DB gia' esistenti su Streamlit Cloud) ---
         # A) Aziende: colonne logo embedded
         try:
             azi_cols = {r['name'] for r in conn.execute("PRAGMA table_info(aziende)").fetchall()}
@@ -46,7 +45,6 @@ def init_db():
         try:
             conn.execute("SELECT 1 FROM appuntamenti LIMIT 1")
         except Exception:
-            # tabella completamente assente
             try:
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS appuntamenti (
@@ -68,7 +66,6 @@ def init_db():
         # B2) Appuntamenti: migrazione colonne (DB vecchi con schema diverso)
         try:
             app_cols = {r['name'] for r in conn.execute("PRAGMA table_info(appuntamenti)").fetchall()}
-            # colonne minime richieste dalla UI calendario
             required = {
                 'id': "TEXT",
                 'titolo': "TEXT",
@@ -82,14 +79,12 @@ def init_db():
             }
             for col, ctype in required.items():
                 if col not in app_cols:
-                    # SQLite consente solo ADD COLUMN; se mancano created/updated li aggiungiamo senza default
                     conn.execute(f"ALTER TABLE appuntamenti ADD COLUMN {col} {ctype}")
         except Exception:
             pass
 
         # --- MIGRAZIONI/REGOLA COMMERCIALE ---
         # Cartone fisso: 6 pezzi per tutti i prodotti.
-        # (Serve anche per database già esistenti creati con default=1)
         try:
             conn.execute("UPDATE prodotti SET pezzi_per_cartone = 6 WHERE pezzi_per_cartone IS NULL OR pezzi_per_cartone != 6")
         except Exception:
@@ -150,7 +145,6 @@ def save_azienda(data: Dict) -> str:
     conn = get_connection()
     try:
         if 'id' in data and data['id']:
-            # Update
             azienda_id = data['id']
             fields = []
             values = []
@@ -165,7 +159,6 @@ def save_azienda(data: Dict) -> str:
             query = f"UPDATE aziende SET {', '.join(fields)} WHERE id = ?"
             conn.execute(query, values)
         else:
-            # Insert
             azienda_id = generate_id()
             data['id'] = azienda_id
             data['created_at'] = datetime.now().isoformat()
@@ -235,7 +228,6 @@ def save_cliente(data: Dict) -> str:
     conn = get_connection()
     try:
         if 'id' in data and data['id']:
-            # Update
             cliente_id = data['id']
             fields = []
             values = []
@@ -250,7 +242,6 @@ def save_cliente(data: Dict) -> str:
             query = f"UPDATE clienti SET {', '.join(fields)} WHERE id = ?"
             conn.execute(query, values)
         else:
-            # Insert
             cliente_id = generate_id()
             data['id'] = cliente_id
             data['created_at'] = datetime.now().isoformat()
@@ -330,7 +321,7 @@ def get_prodotto(prodotto_id: str) -> Optional[Dict]:
 
 
 def get_prodotti_acquistati_cliente(cliente_id: str, azienda_id: str = None) -> List[str]:
-    """Ottiene gli ID dei prodotti già acquistati da un cliente"""
+    """Ottiene gli ID dei prodotti gia' acquistati da un cliente"""
     conn = get_connection()
     try:
         query = """
@@ -353,13 +344,11 @@ def get_prodotti_acquistati_cliente(cliente_id: str, azienda_id: str = None) -> 
 
 def save_prodotto(data: Dict) -> str:
     """Salva o aggiorna un prodotto"""
-    # Regola fissa: 1 cartone = 6 pezzi
     if data is not None:
         data['pezzi_per_cartone'] = 6
     conn = get_connection()
     try:
         if 'id' in data and data['id']:
-            # Update
             prodotto_id = data['id']
             fields = []
             values = []
@@ -374,7 +363,6 @@ def save_prodotto(data: Dict) -> str:
             query = f"UPDATE prodotti SET {', '.join(fields)} WHERE id = ?"
             conn.execute(query, values)
         else:
-            # Insert
             prodotto_id = generate_id()
             data['id'] = prodotto_id
             data['created_at'] = datetime.now().isoformat()
@@ -410,7 +398,6 @@ def get_prossimo_numero_ordine() -> str:
     """Genera il prossimo numero ordine"""
     conn = get_connection()
     try:
-        # Ottieni impostazioni
         row = conn.execute("SELECT valore FROM impostazioni WHERE chiave = 'numero_ordine_progressivo'").fetchone()
         progressivo = int(row['valore']) if row else 1
         
@@ -420,14 +407,12 @@ def get_prossimo_numero_ordine() -> str:
         row = conn.execute("SELECT valore FROM impostazioni WHERE chiave = 'numero_ordine_anno'").fetchone()
         include_anno = row['valore'] == '1' if row else True
         
-        # Genera numero
         anno = datetime.now().year
         if include_anno:
             numero = f"{prefisso}-{anno}-{progressivo:05d}"
         else:
             numero = f"{prefisso}-{progressivo:05d}"
         
-        # Incrementa progressivo
         conn.execute("UPDATE impostazioni SET valore = ?, updated_at = ? WHERE chiave = 'numero_ordine_progressivo'",
                     (str(progressivo + 1), datetime.now().isoformat()))
         conn.commit()
@@ -490,7 +475,6 @@ def get_ordine(ordine_id: str) -> Optional[Dict]:
     """Ottiene un ordine con tutti i dettagli"""
     conn = get_connection()
     try:
-        # Testata
         row = conn.execute("""
             SELECT o.*, 
                    a.nome AS azienda_nome,
@@ -522,7 +506,6 @@ def get_ordine(ordine_id: str) -> Optional[Dict]:
         
         ordine = row_to_dict(row)
         
-        # Righe
         righe = conn.execute("""
             SELECT r.*, p.codice AS prodotto_codice, p.nome AS prodotto_nome,
                    p.unita_misura, p.pezzi_per_cartone
@@ -540,18 +523,11 @@ def get_ordine(ordine_id: str) -> Optional[Dict]:
 
 
 def save_ordine(testata: Dict, righe: List[Dict]) -> str:
-    """Salva un ordine completo (testata + righe).
-
-    Fix importanti:
-    - calcola automaticamente prezzo_finale/importo_riga se mancanti
-    - filtra solo le colonne effettive della tabella (evita errori con campi UI)
-    - aggiorna una tabella di prefill (cliente_prodotto_pref) per ricordare prezzo/quantità dell'ultimo ordine
-    """
+    """Salva un ordine completo (testata + righe)."""
     conn = get_connection()
     try:
         conn.execute("BEGIN")
 
-        # colonne ammesse per evitare mismatch
         allowed_testata = {
             'id','numero','data_ordine','azienda_id','cliente_id','pagamento','consegna_tipo',
             'totale_pezzi','totale_cartoni','imponibile','sconto_chiusura','totale_finale',
@@ -564,7 +540,6 @@ def save_ordine(testata: Dict, righe: List[Dict]) -> str:
 
         if 'id' in testata and testata['id']:
             ordine_id = testata['id']
-            # Update testata
             fields = []
             values = []
             for key, value in testata.items():
@@ -576,11 +551,8 @@ def save_ordine(testata: Dict, righe: List[Dict]) -> str:
             values.append(ordine_id)
             query = f"UPDATE ordini SET {', '.join(fields)} WHERE id = ?"
             conn.execute(query, values)
-
-            # Elimina vecchie righe
             conn.execute("DELETE FROM ordini_righe WHERE ordine_id = ?", (ordine_id,))
         else:
-            # Insert testata
             ordine_id = generate_id()
             now = datetime.now().isoformat()
             testata = dict(testata)
@@ -594,7 +566,6 @@ def save_ordine(testata: Dict, righe: List[Dict]) -> str:
             query = f"INSERT INTO ordini ({', '.join(fields)}) VALUES ({placeholders})"
             conn.execute(query, list(insert_data.values()))
 
-        # Insert righe
         for i, riga in enumerate(righe):
             r = dict(riga)
             r['id'] = generate_id()
@@ -602,7 +573,6 @@ def save_ordine(testata: Dict, righe: List[Dict]) -> str:
             r['posizione'] = i + 1
             r['created_at'] = datetime.now().isoformat()
 
-            # normalizza quantità
             r['quantita_cartoni'] = int(r.get('quantita_cartoni') or 0)
             r['quantita_pezzi'] = int(r.get('quantita_pezzi') or 0)
             r['quantita_totale'] = int(r.get('quantita_totale') or 0)
@@ -620,14 +590,12 @@ def save_ordine(testata: Dict, righe: List[Dict]) -> str:
             query = f"INSERT INTO ordini_righe ({', '.join(fields)}) VALUES ({placeholders})"
             conn.execute(query, list(insert_riga.values()))
 
-        # Aggiorna prefill per ordine successivo
         try:
             cliente_id = testata.get('cliente_id')
             azienda_id = testata.get('azienda_id')
             if cliente_id and azienda_id:
                 _upsert_cliente_prodotto_pref(conn, cliente_id, azienda_id, righe)
         except Exception:
-            # non blocchiamo il salvataggio ordine se fallisce il prefill
             pass
 
         conn.commit()
@@ -643,7 +611,7 @@ def save_ordine(testata: Dict, righe: List[Dict]) -> str:
 
 
 def _upsert_cliente_prodotto_pref(conn: sqlite3.Connection, cliente_id: str, azienda_id: str, righe: List[Dict]) -> None:
-    """Upsert delle preferenze (ultimo prezzo/quantità) per ogni prodotto del cliente."""
+    """Upsert delle preferenze (ultimo prezzo/quantita') per ogni prodotto del cliente."""
     now = datetime.now().isoformat()
     for r in righe:
         prodotto_id = r.get('prodotto_id')
@@ -732,10 +700,6 @@ def delete_ordine(ordine_id: str) -> bool:
 
 
 # ============================================
-# PROMEMORIA
-# ============================================
-
-# ============================================
 # APPUNTAMENTI (CALENDARIO)
 # ============================================
 
@@ -771,6 +735,7 @@ def save_appuntamento(data: Dict) -> str:
 
 
 def delete_appuntamento(app_id: str) -> None:
+    """Elimina un appuntamento"""
     conn = get_connection()
     try:
         conn.execute("DELETE FROM appuntamenti WHERE id = ?", (app_id,))
@@ -799,7 +764,13 @@ def get_appuntamenti_range(date_from: str, date_to: str) -> List[Dict]:
 
 
 def get_appuntamenti_by_date(date_iso: str) -> List[Dict]:
+    """Ritorna appuntamenti per una data specifica"""
     return get_appuntamenti_range(date_iso, date_iso)
+
+
+# ============================================
+# PROMEMORIA
+# ============================================
 
 def get_promemoria(solo_attivi: bool = True, cliente_id: str = None) -> List[Dict]:
     """Ottiene i promemoria"""
@@ -976,7 +947,6 @@ def save_agente(data: Dict) -> str:
     """Salva i dati dell'agente"""
     conn = get_connection()
     try:
-        # Verifica se esiste già
         existing = conn.execute("SELECT id FROM agente LIMIT 1").fetchone()
         
         if existing:
@@ -1020,19 +990,15 @@ def get_statistiche_dashboard() -> Dict:
     try:
         stats = {}
         
-        # Totale clienti attivi
         row = conn.execute("SELECT COUNT(*) as cnt FROM clienti WHERE attivo = 1").fetchone()
         stats['totale_clienti'] = row['cnt']
         
-        # Totale aziende attive
         row = conn.execute("SELECT COUNT(*) as cnt FROM aziende WHERE attivo = 1").fetchone()
         stats['totale_aziende'] = row['cnt']
         
-        # Totale prodotti
         row = conn.execute("SELECT COUNT(*) as cnt FROM prodotti WHERE disponibile = 1").fetchone()
         stats['totale_prodotti'] = row['cnt']
         
-        # Ordini mese corrente
         primo_mese = date.today().replace(day=1).isoformat()
         row = conn.execute("""
             SELECT COUNT(*) as cnt, COALESCE(SUM(totale_finale), 0) as totale
@@ -1042,7 +1008,6 @@ def get_statistiche_dashboard() -> Dict:
         stats['ordini_mese'] = row['cnt']
         stats['fatturato_mese'] = row['totale']
         
-        # Ordini anno corrente
         primo_anno = date.today().replace(month=1, day=1).isoformat()
         row = conn.execute("""
             SELECT COUNT(*) as cnt, COALESCE(SUM(totale_finale), 0) as totale
@@ -1052,7 +1017,6 @@ def get_statistiche_dashboard() -> Dict:
         stats['ordini_anno'] = row['cnt']
         stats['fatturato_anno'] = row['totale']
         
-        # Promemoria scaduti
         oggi = date.today().isoformat()
         row = conn.execute("""
             SELECT COUNT(*) as cnt FROM promemoria 
@@ -1060,14 +1024,12 @@ def get_statistiche_dashboard() -> Dict:
         """, (oggi,)).fetchone()
         stats['promemoria_scaduti'] = row['cnt']
         
-        # Promemoria oggi
         row = conn.execute("""
             SELECT COUNT(*) as cnt FROM promemoria 
             WHERE completato = 0 AND data_scadenza = ?
         """, (oggi,)).fetchone()
         stats['promemoria_oggi'] = row['cnt']
         
-        # Visite oggi
         row = conn.execute("""
             SELECT COUNT(*) as cnt FROM visite_pianificate 
             WHERE completata = 0 AND data_pianificata = ?
@@ -1112,7 +1074,6 @@ def get_fatturato_mensile_series(mesi: int = 12) -> List[Dict]:
     conn = get_connection()
     try:
         oggi = date.today()
-        # Lista mesi YYYY-MM (dal più vecchio al più recente)
         months = []
         y, m = oggi.year, oggi.month
         for i in range(mesi - 1, -1, -1):
@@ -1226,7 +1187,7 @@ def get_fatturato_per_mese(anno: int = None) -> List[Dict]:
 
 
 def get_top_prodotti(anno: int = None, limit: int = 10) -> List[Dict]:
-    """Ottiene i prodotti più venduti"""
+    """Ottiene i prodotti piu' venduti"""
     conn = get_connection()
     try:
         if anno is None:
@@ -1259,6 +1220,5 @@ def get_top_prodotti(anno: int = None, limit: int = 10) -> List[Dict]:
 # INIZIALIZZAZIONE
 # ============================================
 
-# Inizializza il database all'import del modulo
 if not os.path.exists(DB_PATH):
     init_db()
