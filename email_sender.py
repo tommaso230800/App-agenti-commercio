@@ -46,12 +46,13 @@ def send_email_with_attachment(
     from_addr = (os.getenv("SMTP_FROM", "").strip() or user).strip()
 
     if not host or not user or not password or not from_addr:
-        raise RuntimeError("SMTP non configurato: imposta SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS")
+        raise RuntimeError("SMTP non configurato: imposta SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS (e opzionale SMTP_FROM)")
 
     to_email = (to_email or "").strip()
     if not to_email:
         raise RuntimeError("Destinatario email mancante")
 
+    # Heuristics SSL/TLS
     use_ssl = _env_bool("SMTP_SSL", default=(port == 465))
     use_tls = _env_bool("SMTP_TLS", default=(port == 587))
 

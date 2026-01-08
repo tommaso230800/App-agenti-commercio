@@ -6,25 +6,40 @@ Generatore PDF Ordine Professionale
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import mm
+from reportlab.lib.units import mm, cm
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, HRFlowable
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from io import BytesIO
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
+import os
 
 
-COLORE_PRIMARY = colors.HexColor('#1a365d')
-COLORE_SECONDARY = colors.HexColor('#2b6cb0')
-COLORE_GRIGIO = colors.HexColor('#718096')
-COLORE_GRIGIO_CHIARO = colors.HexColor('#f7fafc')
-COLORE_BORDER = colors.HexColor('#e2e8f0')
+# Colori aziendali
+COLORE_PRIMARY = colors.HexColor('#1e3a5f')  # Blu scuro
+COLORE_SECONDARY = colors.HexColor('#3b82f6')  # Blu
+COLORE_GRIGIO = colors.HexColor('#6b7280')
+COLORE_GRIGIO_CHIARO = colors.HexColor('#f3f4f6')
+COLORE_BORDER = colors.HexColor('#d1d5db')
 
 
 def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
-    """Genera un PDF professionale per l'ordine."""
+    """
+    Genera un PDF professionale per l'ordine.
+    
+    Args:
+        ordine: Dizionario con tutti i dati dell'ordine (testata + righe)
+        agente: Dizionario con i dati dell'agente (opzionale)
+    
+    Returns:
+        bytes: Contenuto del PDF
+    """
     buffer = BytesIO()
     
+    # Crea il documento
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
@@ -34,7 +49,27 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
         bottomMargin=20*mm
     )
     
+    # Stili
     styles = getSampleStyleSheet()
+    
+    # Stili personalizzati
+    style_titolo = ParagraphStyle(
+        'Titolo',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor=COLORE_PRIMARY,
+        spaceAfter=6,
+        alignment=TA_CENTER
+    )
+    
+    style_sottotitolo = ParagraphStyle(
+        'Sottotitolo',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=COLORE_GRIGIO,
+        alignment=TA_CENTER,
+        spaceAfter=12
+    )
     
     style_sezione = ParagraphStyle(
         'Sezione',
@@ -77,13 +112,18 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
         alignment=TA_CENTER
     )
     
+    # Elementi del documento
     elements = []
     
-    # HEADER
+    # ==================== HEADER ====================
+    
+    # Logo e info documento
     header_data = [
         [
+            # Colonna sinistra: Logo/Nome azienda
             Paragraph(f"<b>{ordine.get('azienda_nome', 'AZIENDA')}</b>", 
                      ParagraphStyle('AziendaNome', fontSize=14, textColor=COLORE_PRIMARY)),
+            # Colonna destra: Info documento
             Paragraph(f"<b>ORDINE N. {ordine.get('numero', '')}</b>", 
                      ParagraphStyle('NumOrdine', fontSize=14, textColor=COLORE_PRIMARY, alignment=TA_RIGHT))
         ],
@@ -101,15 +141,20 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
     ]))
     elements.append(header_table)
     elements.append(Spacer(1, 5*mm))
+    
+    # Linea separatrice
     elements.append(HRFlowable(width="100%", thickness=1, color=COLORE_PRIMARY, spaceAfter=5*mm))
     
-    # FORNITORE E CLIENTE
+    # ==================== DATI AZIENDA E CLIENTE ====================
+    
+    # Box Fornitore e Cliente
     box_data = [
         [
             Paragraph("<b>FORNITORE</b>", style_sezione),
             Paragraph("<b>CLIENTE</b>", style_sezione)
         ],
         [
+            # Dati fornitore
             Paragraph(f"""
                 <b>{ordine.get('azienda_ragione_sociale', ordine.get('azienda_nome', ''))}</b><br/>
                 {ordine.get('azienda_indirizzo', '')}<br/>
@@ -118,6 +163,7 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
                 Email: {ordine.get('azienda_email', '')}<br/>
                 P.IVA: {ordine.get('azienda_piva', '')}
             """, style_valore),
+            # Dati cliente
             Paragraph(f"""
                 <b>{ordine.get('cliente_ragione_sociale', '')}</b><br/>
                 {ordine.get('cliente_indirizzo', '')}<br/>
@@ -143,14 +189,28 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
     elements.append(box_table)
     elements.append(Spacer(1, 5*mm))
     
-    # TABELLA ARTICOLI
+    # ==================== SEDE DI CONSEGNA (se diversa) ====================
+    
+    if ordine.get('consegna_indirizzo') and ordine.get('consegna_indirizzo') != ordine.get('cliente_indirizzo'):
+        elements.append(Paragraph("<b>SEDE DI CONSEGNA</b>", style_sezione))
+        consegna_text = f"""
+            {ordine.get('consegna_indirizzo', '')}<br/>
+            {ordine.get('consegna_cap', '')} {ordine.get('consegna_citta', '')} ({ordine.get('consegna_provincia', '')})<br/>
+            {ordine.get('consegna_note', '')}
+        """
+        elements.append(Paragraph(consegna_text, style_valore))
+        elements.append(Spacer(1, 3*mm))
+    
+    # ==================== TABELLA ARTICOLI ====================
+    
     elements.append(Paragraph("<b>DETTAGLIO ARTICOLI</b>", style_sezione))
     
+    # Header tabella
     articoli_header = [
         Paragraph("<b>ARTICOLO</b>", style_label),
         Paragraph("<b>DESCRIZIONE</b>", style_label),
         Paragraph("<b>U.M.</b>", style_label),
-        Paragraph("<b>Q.TA</b>", style_label),
+        Paragraph("<b>Q.TÀ</b>", style_label),
         Paragraph("<b>PR. UN.</b>", style_label),
         Paragraph("<b>SC.%</b>", style_label),
         Paragraph("<b>IMPORTO</b>", style_label),
@@ -158,8 +218,10 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
     
     articoli_data = [articoli_header]
     
+    # Righe articoli
     righe = ordine.get('righe', [])
     for riga in righe:
+        # Formatta quantità
         qta_cartoni = riga.get('quantita_cartoni', 0) or 0
         qta_pezzi = riga.get('quantita_pezzi', 0) or 0
         qta_totale = riga.get('quantita_totale', 0) or 0
@@ -182,10 +244,12 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
         ]
         articoli_data.append(row)
     
+    # Crea tabella
     col_widths = [25*mm, 55*mm, 12*mm, 22*mm, 20*mm, 15*mm, 25*mm]
     articoli_table = Table(articoli_data, colWidths=col_widths, repeatRows=1)
     
     articoli_style = TableStyle([
+        # Header
         ('BACKGROUND', (0, 0), (-1, 0), COLORE_PRIMARY),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -193,14 +257,20 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('PADDING', (0, 0), (-1, -1), 4),
+        
+        # Righe
         ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ('ALIGN', (2, 1), (2, -1), 'CENTER'),
-        ('ALIGN', (3, 1), (3, -1), 'CENTER'),
-        ('ALIGN', (4, 1), (5, -1), 'RIGHT'),
-        ('ALIGN', (6, 1), (6, -1), 'RIGHT'),
+        ('ALIGN', (2, 1), (2, -1), 'CENTER'),  # U.M.
+        ('ALIGN', (3, 1), (3, -1), 'CENTER'),  # Q.TÀ
+        ('ALIGN', (4, 1), (5, -1), 'RIGHT'),   # Prezzo, Sconto
+        ('ALIGN', (6, 1), (6, -1), 'RIGHT'),   # Importo
+        
+        # Bordi
         ('BOX', (0, 0), (-1, -1), 0.5, COLORE_BORDER),
         ('LINEBELOW', (0, 0), (-1, 0), 1, COLORE_PRIMARY),
         ('LINEBELOW', (0, 1), (-1, -2), 0.25, COLORE_BORDER),
+        
+        # Righe alternate
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, COLORE_GRIGIO_CHIARO]),
     ])
     
@@ -208,13 +278,15 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
     elements.append(articoli_table)
     elements.append(Spacer(1, 5*mm))
     
-    # TOTALI
+    # ==================== TOTALI ====================
+    
     totale_pezzi = ordine.get('totale_pezzi', 0) or 0
     totale_cartoni = ordine.get('totale_cartoni', 0) or 0
     imponibile = ordine.get('imponibile', 0) or 0
     sconto_chiusura = ordine.get('sconto_chiusura', 0) or 0
     totale_finale = ordine.get('totale_finale', 0) or 0
     
+    # Calcola sconto in euro se percentuale
     if sconto_chiusura > 0:
         sconto_euro = imponibile * (sconto_chiusura / 100)
     else:
@@ -245,14 +317,24 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
     elements.append(totali_table)
     elements.append(Spacer(1, 8*mm))
     
-    # CONDIZIONI
+    # ==================== CONDIZIONI DI VENDITA ====================
+    
     elements.append(HRFlowable(width="100%", thickness=0.5, color=COLORE_BORDER, spaceBefore=3*mm, spaceAfter=3*mm))
+    
     elements.append(Paragraph("<b>CONDIZIONI DI VENDITA</b>", style_sezione))
     
     condizioni_data = [
         [
             Paragraph(f"<b>Pagamento:</b> {ordine.get('pagamento', '-')}", style_valore),
             Paragraph(f"<b>Consegna:</b> {ordine.get('consegna_tipo', '-')}", style_valore),
+        ],
+        [
+            Paragraph(f"<b>Resa:</b> {ordine.get('resa', '-')}", style_valore),
+            Paragraph(f"<b>Spedizione:</b> {ordine.get('spedizione', '-')}", style_valore),
+        ],
+        [
+            Paragraph(f"<b>Banca:</b> {ordine.get('banca', '-')}", style_valore),
+            Paragraph("", style_valore),
         ],
     ]
     
@@ -263,7 +345,8 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
     ]))
     elements.append(condizioni_table)
     
-    # NOTE
+    # ==================== NOTE ====================
+    
     if ordine.get('note'):
         elements.append(Spacer(1, 3*mm))
         elements.append(Paragraph("<b>NOTE:</b>", style_sezione))
@@ -271,7 +354,8 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
     
     elements.append(Spacer(1, 10*mm))
     
-    # FIRME
+    # ==================== FIRME ====================
+    
     elements.append(HRFlowable(width="100%", thickness=0.5, color=COLORE_BORDER, spaceBefore=3*mm, spaceAfter=5*mm))
     
     firme_data = [
@@ -292,7 +376,8 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
     ]))
     elements.append(firme_table)
     
-    # FOOTER
+    # ==================== FOOTER ====================
+    
     elements.append(Spacer(1, 10*mm))
     
     if agente:
@@ -302,6 +387,7 @@ def genera_pdf_ordine(ordine: Dict, agente: Dict = None) -> bytes:
     footer_text = f"Documento generato il {datetime.now().strftime('%d/%m/%Y alle %H:%M')} - Portale Agente"
     elements.append(Paragraph(footer_text, style_piccolo))
     
+    # Genera PDF
     doc.build(elements)
     
     pdf_bytes = buffer.getvalue()
@@ -314,9 +400,9 @@ def format_euro(value) -> str:
     """Formatta un valore come euro"""
     try:
         value = float(value) if value else 0
-        return f"EUR {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"€ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except:
-        return "EUR 0,00"
+        return "€ 0,00"
 
 
 def format_data(data_str) -> str:
@@ -336,57 +422,32 @@ def format_data(data_str) -> str:
         return str(data_str)
 
 
+# ============================================
+# FUNZIONE PER GENERARE PDF DA STREAMLIT
+# ============================================
+
 def genera_pdf_ordine_download(ordine_id: str) -> tuple:
-    """Genera il PDF di un ordine pronto per il download."""
+    """
+    Genera il PDF di un ordine pronto per il download.
+    
+    Returns:
+        tuple: (bytes del PDF, nome file)
+    """
+    # Import db qui per evitare import circolari
     import db
     
+    # Carica ordine completo
     ordine = db.get_ordine(ordine_id)
     if not ordine:
         return None, None
     
+    # Carica dati agente
     agente = db.get_agente()
     
+    # Genera PDF
     pdf_bytes = genera_pdf_ordine(ordine, agente)
     
-    numero_ordine = ordine.get('numero', 'ordine').replace('/', '-')
-    cliente = ordine.get('cliente_ragione_sociale', 'cliente').replace(' ', '_')[:20]
-    filename = f"Ordine_{numero_ordine}_{cliente}.pdf"
-    
-    return pdf_bytes, filename
-        value = float(value) if value else 0
-        return f"EUR {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    except:
-        return "EUR 0,00"
-
-
-def format_data(data_str) -> str:
-    """Formatta una data"""
-    if not data_str:
-        return "-"
-    try:
-        if isinstance(data_str, str):
-            if 'T' in data_str:
-                data = datetime.fromisoformat(data_str.split('T')[0])
-            else:
-                data = datetime.strptime(data_str, '%Y-%m-%d')
-        else:
-            data = data_str
-        return data.strftime('%d/%m/%Y')
-    except:
-        return str(data_str)
-
-
-def genera_pdf_ordine_download(ordine_id: str) -> tuple:
-    """Genera il PDF di un ordine pronto per il download."""
-    import db
-    
-    ordine = db.get_ordine(ordine_id)
-    if not ordine:
-        return None, None
-    
-    agente = db.get_agente()
-    pdf_bytes = genera_pdf_ordine(ordine, agente)
-    
+    # Nome file
     numero_ordine = ordine.get('numero', 'ordine').replace('/', '-')
     cliente = ordine.get('cliente_ragione_sociale', 'cliente').replace(' ', '_')[:20]
     filename = f"Ordine_{numero_ordine}_{cliente}.pdf"
