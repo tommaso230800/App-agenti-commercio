@@ -11,11 +11,25 @@ import plotly.express as px
 import plotly.graph_objects as go
 import base64
 import calendar
+import os
 
 # Import moduli locali
 import db
 from pdf_ordine import genera_pdf_ordine_download
 from email_sender import send_email_with_attachment
+
+
+# Logo Agenzia (header globale)
+AGENCY_LOGO_PATH = os.path.join(os.path.dirname(__file__), "assets", "agency_logo.jpg")
+
+
+def render_agency_logo(width: int = 90):
+    """Mostra il logo dell'agenzia se presente."""
+    try:
+        if os.path.exists(AGENCY_LOGO_PATH):
+            st.image(AGENCY_LOGO_PATH, width=width)
+    except Exception:
+        pass
 
 
 def _b64_to_bytes(b64_str: str) -> bytes:
@@ -714,7 +728,18 @@ def calcola_totali_ordine() -> dict:
 
 def render_top_nav(title: str, subtitle: str = None, show_back: bool = True):
     """Barra di navigazione superiore compatta"""
-    col1, col2, col3 = st.columns([1, 4, 1])
+    # Menu a tendina globale (richiesta utente)
+    pages = [
+        ("Home", "dashboard"),
+        ("Nuovo ordine", "nuovo_ordine"),
+        ("Ordini", "ordini"),
+        ("Clienti", "clienti"),
+        ("Aziende", "aziende"),
+        ("Promemoria", "promemoria"),
+        ("Calendario", "calendario"),
+    ]
+
+    col1, col2, col3 = st.columns([1.2, 6, 2.2])
     
     with col1:
         if show_back and st.session_state.current_page != 'dashboard':
@@ -723,35 +748,44 @@ def render_top_nav(title: str, subtitle: str = None, show_back: bool = True):
                 st.rerun()
     
     with col2:
-        st.markdown(f"**{title}**" + (f" · <span style='color:#6b7280;font-size:0.85rem;'>{subtitle}</span>" if subtitle else ""), unsafe_allow_html=True)
+        # Logo agenzia + titolo
+        l1, l2 = st.columns([1, 6])
+        with l1:
+            render_agency_logo(width=56)
+        with l2:
+            st.markdown(
+                f"**{title}**" + (f" · <span style='color:#6b7280;font-size:0.85rem;'>{subtitle}</span>" if subtitle else ""),
+                unsafe_allow_html=True,
+            )
     
     with col3:
-        pass
+        labels = [p[0] for p in pages]
+        values = [p[1] for p in pages]
+        try:
+            current_idx = values.index(st.session_state.current_page)
+        except Exception:
+            current_idx = 0
+        sel = st.selectbox(
+            "Menu",
+            options=list(range(len(pages))),
+            format_func=lambda i: labels[i],
+            index=current_idx,
+            label_visibility="collapsed",
+        )
+        target_page = values[int(sel)]
+        if target_page != st.session_state.current_page:
+            if target_page == 'nuovo_ordine':
+                reset_ordine()
+            navigate_to(target_page, add_to_history=True)
+            st.rerun()
     
     st.markdown("<hr style='margin:0.5rem 0 1rem 0;border:none;border-top:1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
 
 def render_bottom_nav():
     """Barra di navigazione inferiore"""
-    nav_items = [
-        ('dashboard', '🏠', 'Home'),
-        ('ordini', '📋', 'Ordini'),
-        ('nuovo_ordine', '➕', 'Nuovo'),
-        ('clienti', '👥', 'Clienti'),
-        ('aziende', '🏭', 'Aziende'),
-        ('calendario', '📅', 'Calendario'),
-    ]
-    
-    cols = st.columns(len(nav_items))
-    for col, (page_id, icon, label) in zip(cols, nav_items):
-        with col:
-            is_active = st.session_state.current_page == page_id
-            btn_type = "primary" if is_active else "secondary"
-            if st.button(f"{icon}\n{label}", key=f"nav_{page_id}", use_container_width=True, type=btn_type):
-                if page_id == 'nuovo_ordine':
-                    reset_ordine()
-                navigate_to(page_id, add_to_history=True)
-                st.rerun()
+    # Disattivata: l'utente vuole il menu a tendina.
+    return
 
 
 def render_metrics_grid(metrics: list):
@@ -774,11 +808,15 @@ def render_metrics_grid(metrics: list):
 def render_login():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
+        st.markdown("""<div style="text-align:center;padding:3rem 0 1rem 0;"></div>""", unsafe_allow_html=True)
+        # Logo agenzia sopra al login
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            render_agency_logo(width=180)
         st.markdown("""
-            <div style="text-align:center;padding:4rem 0 2rem 0;">
-                <div style="font-size:4rem;margin-bottom:1rem;">💼</div>
-                <h1 style="color:#1e3a5f;font-size:1.75rem;margin-bottom:0.5rem;">Portale Agente</h1>
-                <p style="color:#6b7280;">Gestionale Commerciale</p>
+            <div style="text-align:center;padding:0.5rem 0 1.5rem 0;">
+                <h1 style="color:#1e3a5f;font-size:1.75rem;margin-bottom:0.25rem;">Portale Agente</h1>
+                <p style="color:#6b7280;margin:0;">Gestionale Commerciale</p>
             </div>
         """, unsafe_allow_html=True)
         
@@ -814,7 +852,7 @@ def render_dashboard():
     
     # Azioni rapide
     st.markdown("**⚡ Azioni Rapide**")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         if st.button("➕\nNuovo Ordine", key="action_ordine", use_container_width=True):
@@ -833,9 +871,51 @@ def render_dashboard():
         if st.button("📅\nCalendario", key="action_calendario", use_container_width=True):
             navigate_to('calendario')
             st.rerun()
+
+    with col5:
+        if st.button("⏰\nPromemoria", key="action_promemoria", use_container_width=True):
+            navigate_to('promemoria')
+            st.rerun()
     
     st.markdown("<br>", unsafe_allow_html=True)
     
+    # Prossimi appuntamenti e promemoria
+    left, right = st.columns(2)
+    today = date.today()
+    with left:
+        st.markdown("**📅 Prossimi appuntamenti (7 gg)**")
+        try:
+            if hasattr(db, "get_appuntamenti_range"):
+                apps = db.get_appuntamenti_range(today.isoformat(), (today + timedelta(days=7)).isoformat())
+            else:
+                apps = []
+        except Exception:
+            apps = []
+
+        if not apps:
+            st.info("Nessun appuntamento nei prossimi 7 giorni")
+        else:
+            for a in apps[:6]:
+                st.markdown(
+                    f"- **{str(a.get('data'))} {a.get('ora') or ''}** · {a.get('titolo','')}"
+                )
+
+    with right:
+        st.markdown("**⏰ Promemoria in scadenza (7 gg)**")
+        try:
+            proms = db.get_promemoria(solo_attivi=True)
+            proms = [p for p in proms if p.get('data_scadenza') and str(p['data_scadenza']) <= (today + timedelta(days=7)).isoformat()]
+        except Exception:
+            proms = []
+
+        if not proms:
+            st.info("Nessun promemoria in scadenza")
+        else:
+            for p in proms[:6]:
+                st.markdown(f"- **{format_date(p.get('data_scadenza'))}** · {p.get('titolo','')}")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # Ultimi ordini
     st.markdown("**📦 Ultimi Ordini**")
     ordini = db.get_ordini(limit=5)
@@ -863,8 +943,7 @@ def render_dashboard():
     else:
         st.info("Nessun ordine presente")
     
-    st.markdown("<br><br><br>", unsafe_allow_html=True)
-    render_bottom_nav()
+    st.markdown("<br><br>", unsafe_allow_html=True)
 
 
 # ============================================
@@ -2018,7 +2097,20 @@ def render_calendario():
         # Carica appuntamenti del mese per contatori
         first_day = date(y, m, 1)
         last_day = date(y, m, calendar.monthrange(y, m)[1])
-        month_apps = db.get_appuntamenti_range(first_day.isoformat(), last_day.isoformat())
+        # Compatibilità: se il DB module è vecchio su Streamlit Cloud, evita crash
+        if hasattr(db, "get_appuntamenti_range"):
+            month_apps = db.get_appuntamenti_range(first_day.isoformat(), last_day.isoformat())
+        else:
+            # Fallback diretto SQL
+            conn = db.get_connection()
+            try:
+                rows = conn.execute(
+                    "SELECT * FROM appuntamenti WHERE data >= ? AND data <= ? ORDER BY data, ora",
+                    (first_day.isoformat(), last_day.isoformat()),
+                ).fetchall()
+                month_apps = [dict(r) for r in rows]
+            finally:
+                conn.close()
         counts: Dict[int, int] = {}
         for a in month_apps:
             try:
@@ -2059,7 +2151,19 @@ def render_calendario():
             st.session_state.cal_selected_date = selected_date.isoformat()
 
         st.markdown(f"**{selected_date.strftime('%A %d/%m/%Y')}**")
-        day_apps = db.get_appuntamenti_by_date(selected_date.isoformat())
+        # Compatibilità: se il DB module è vecchio, evita crash
+        if hasattr(db, "get_appuntamenti_by_date"):
+            day_apps = db.get_appuntamenti_by_date(selected_date.isoformat())
+        else:
+            conn = db.get_connection()
+            try:
+                rows = conn.execute(
+                    "SELECT * FROM appuntamenti WHERE data = ? ORDER BY ora",
+                    (selected_date.isoformat(),),
+                ).fetchall()
+                day_apps = [dict(r) for r in rows]
+            finally:
+                conn.close()
 
         if not day_apps:
             st.info("Nessun appuntamento in questa data")
