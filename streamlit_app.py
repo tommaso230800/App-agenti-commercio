@@ -2059,107 +2059,195 @@ def render_form_promemoria():
 
 
 def render_calendario():
-    """Pagina calendario con vista mensile e gestione appuntamenti."""
+    """Calendario stile "app calendario" (mese con eventi visibili), più viste Giorno/Settimana/Elenco."""
     render_top_nav("Calendario", "Appuntamenti")
 
-    # Layout: calendario a sinistra, dettaglio a destra
-    left, right = st.columns([3, 2])
-
+    # --- controlli mese/anno + today ---
     year = st.session_state.cal_year
     month = st.session_state.cal_month
-
-    with left:
-        c1, c2, c3 = st.columns([2, 2, 1])
-        with c1:
-            y = st.selectbox("Anno", options=list(range(date.today().year - 2, date.today().year + 3)), index=list(range(date.today().year - 2, date.today().year + 3)).index(year))
-        with c2:
-            mese_labels = [calendar.month_name[m] for m in range(1, 13)]
-            m = st.selectbox("Mese", options=list(range(1, 13)), format_func=lambda mm: mese_labels[mm - 1], index=month - 1)
-        with c3:
-            if st.button("Oggi", use_container_width=True):
-                st.session_state.cal_year = date.today().year
-                st.session_state.cal_month = date.today().month
-                st.session_state.cal_selected_date = date.today().isoformat()
-                st.rerun()
-
-        if y != year or m != month:
-            st.session_state.cal_year = y
-            st.session_state.cal_month = m
-            # se il giorno selezionato è fuori mese, resetta al primo
-            try:
-                dsel = date.fromisoformat(st.session_state.cal_selected_date)
-                if dsel.year != y or dsel.month != m:
-                    st.session_state.cal_selected_date = date(y, m, 1).isoformat()
-            except Exception:
-                st.session_state.cal_selected_date = date(y, m, 1).isoformat()
+    c1, c2, c3 = st.columns([2, 2, 1])
+    with c1:
+        y = st.selectbox(
+            "Anno",
+            options=list(range(date.today().year - 2, date.today().year + 3)),
+            index=list(range(date.today().year - 2, date.today().year + 3)).index(year),
+        )
+    with c2:
+        mese_labels = [calendar.month_name[m] for m in range(1, 13)]
+        m = st.selectbox(
+            "Mese",
+            options=list(range(1, 13)),
+            format_func=lambda mm: mese_labels[mm - 1],
+            index=month - 1,
+        )
+    with c3:
+        if st.button("Oggi", use_container_width=True):
+            st.session_state.cal_year = date.today().year
+            st.session_state.cal_month = date.today().month
+            st.session_state.cal_selected_date = date.today().isoformat()
             st.rerun()
 
-        # Carica appuntamenti del mese per contatori
-        first_day = date(y, m, 1)
-        last_day = date(y, m, calendar.monthrange(y, m)[1])
-        # Compatibilità: se il DB module è vecchio su Streamlit Cloud, evita crash
-        if hasattr(db, "get_appuntamenti_range"):
-            month_apps = db.get_appuntamenti_range(first_day.isoformat(), last_day.isoformat())
-        else:
-            # Fallback diretto SQL
-            conn = db.get_connection()
-            try:
-                rows = conn.execute(
-                    "SELECT * FROM appuntamenti WHERE data >= ? AND data <= ? ORDER BY data, ora",
-                    (first_day.isoformat(), last_day.isoformat()),
-                ).fetchall()
-                month_apps = [dict(r) for r in rows]
-            finally:
-                conn.close()
-        counts: Dict[int, int] = {}
-        for a in month_apps:
-            try:
-                dd = int(str(a['data']).split("-")[-1])
-                counts[dd] = counts.get(dd, 0) + 1
-            except Exception:
-                pass
+    if y != year or m != month:
+        st.session_state.cal_year = y
+        st.session_state.cal_month = m
+        # se il giorno selezionato è fuori mese, resetta al primo
+        try:
+            dsel = date.fromisoformat(st.session_state.cal_selected_date)
+            if dsel.year != y or dsel.month != m:
+                st.session_state.cal_selected_date = date(y, m, 1).isoformat()
+        except Exception:
+            st.session_state.cal_selected_date = date(y, m, 1).isoformat()
+        st.rerun()
 
-        # Header giorni
-        week_days = ["L", "M", "M", "G", "V", "S", "D"]
-        head_cols = st.columns(7)
-        for i, wd in enumerate(week_days):
-            with head_cols[i]:
-                st.markdown(f"<div style='text-align:center;font-weight:600;opacity:0.8'>{wd}</div>", unsafe_allow_html=True)
+    # --- carica appuntamenti del mese (con fallback) ---
+    first_day = date(y, m, 1)
+    last_day = date(y, m, calendar.monthrange(y, m)[1])
+    if hasattr(db, "get_appuntamenti_range"):
+        month_apps = db.get_appuntamenti_range(first_day.isoformat(), last_day.isoformat())
+    else:
+        conn = db.get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM appuntamenti WHERE data >= ? AND data <= ? ORDER BY data, ora",
+                (first_day.isoformat(), last_day.isoformat()),
+            ).fetchall()
+            month_apps = [dict(r) for r in rows]
+        finally:
+            conn.close()
 
-        # Griglia mese (Monday-first)
-        for week in calendar.monthcalendar(y, m):
-            cols = st.columns(7)
-            for i, day_num in enumerate(week):
-                with cols[i]:
-                    if day_num == 0:
-                        st.markdown("&nbsp;", unsafe_allow_html=True)
-                        continue
-                    day_iso = date(y, m, day_num).isoformat()
-                    selected = (day_iso == st.session_state.cal_selected_date)
-                    badge = counts.get(day_num, 0)
-                    label = f"{day_num}" + (f" · {badge}" if badge else "")
-                    if st.button(label, key=f"cal_{y}_{m}_{day_num}", type="primary" if selected else "secondary", use_container_width=True):
-                        st.session_state.cal_selected_date = day_iso
-                        st.rerun()
+    # indicizza per giorno
+    apps_by_day: Dict[str, List[Dict]] = {}
+    for a in month_apps:
+        dd = str(a.get("data") or "")
+        if dd:
+            apps_by_day.setdefault(dd, []).append(a)
 
-    with right:
-        # Dettaglio giorno selezionato
+    # CSS (griglia 7 colonne sempre, anche su iPhone) + tema light/dark
+    st.markdown(
+        """
+        <style>
+        .cal-wrap{width:100%;}
+        .cal-head{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:0.25rem;}
+        .cal-head div{font-weight:800;text-align:center;opacity:.9;font-size:0.85rem;}
+        .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+        .cal-cell{border-radius:14px;padding:8px;min-height:92px;}
+        .cal-cell.out{opacity:.45;}
+        .cal-day{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+        .cal-daynum{font-weight:900;font-size:0.95rem;}
+        .cal-badge{font-size:0.75rem;opacity:.70;}
+        .cal-event{display:block;font-size:0.74rem;line-height:1.15rem;padding:2px 6px;border-radius:8px;margin:3px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .cal-today{outline:2px solid rgba(0,140,255,0.55);}
+        .cal-selected{outline:2px solid rgba(0,200,120,0.55);}
+
+        /* Light */
+        @media (prefers-color-scheme: light){
+          .cal-cell{border:1px solid rgba(0,0,0,0.10);background:rgba(255,255,255,0.98);}
+          .cal-blue{background:rgba(70,130,255,0.18);border:1px solid rgba(70,130,255,0.35);} 
+          .cal-orange{background:rgba(255,165,0,0.18);border:1px solid rgba(255,165,0,0.35);} 
+          .cal-green{background:rgba(0,200,120,0.16);border:1px solid rgba(0,200,120,0.30);} 
+        }
+
+        /* Dark */
+        @media (prefers-color-scheme: dark){
+          .cal-cell{border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);} 
+          .cal-blue{background:rgba(70,130,255,0.35);border:1px solid rgba(70,130,255,0.55);} 
+          .cal-orange{background:rgba(255,165,0,0.28);border:1px solid rgba(255,165,0,0.50);} 
+          .cal-green{background:rgba(0,200,120,0.25);border:1px solid rgba(0,200,120,0.45);} 
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Barra vista stile calendario (come l'app iPhone)
+    view = st.radio(
+        "",
+        options=["Elenco", "Giorno", "Sett.", "Mese", "Planner"],
+        index=3,
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+
+    # --- MESE (stile calendario) ---
+    if view == "Mese":
+        mesi_it = [
+            "gennaio","febbraio","marzo","aprile","maggio","giugno",
+            "luglio","agosto","settembre","ottobre","novembre","dicembre"
+        ]
+        st.markdown(f"## {mesi_it[m-1]} {y}")
+
+        # costruisci 6 settimane con date (Monday-first)
+        cal = calendar.Calendar(firstweekday=0)
+        weeks = cal.monthdatescalendar(y, m)
+        week_days = ["lun", "mar", "mer", "gio", "ven", "sab", "dom"]
+        st.markdown("<div class='cal-wrap'>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='cal-head'>" + "".join([f"<div>{w}</div>" for w in week_days]) + "</div>",
+            unsafe_allow_html=True,
+        )
+
+        def _pick_class(title: str) -> str:
+            t = (title or "").lower()
+            if any(k in t for k in ["sold", "pag", "incasso", "fatt"]) :
+                return "cal-orange"
+            if any(k in t for k in ["visita", "giro", "cliente", "appunt"]) :
+                return "cal-blue"
+            return "cal-green"
+
+        today_iso = date.today().isoformat()
+        selected_iso = str(st.session_state.get('cal_selected_date') or "")
+        html = ["<div class='cal-grid'>"]
+        for w in weeks:
+            for d in w:
+                day_iso = d.isoformat()
+                out = (d.month != m)
+                day_apps = apps_by_day.get(day_iso, [])
+                badge = f"{len(day_apps)}" if day_apps else ""
+                extra = ""
+                if day_iso == today_iso:
+                    extra += " cal-today"
+                if day_iso == selected_iso:
+                    extra += " cal-selected"
+                cell_cls = ("cal-cell out" if out else "cal-cell") + extra
+                html.append(f"<div class='{cell_cls}'>")
+                html.append("<div class='cal-day'>")
+                html.append(f"<div class='cal-daynum'>{d.day}</div>")
+                html.append(f"<div class='cal-badge'>{badge}</div>")
+                html.append("</div>")
+                for a in day_apps[:4]:
+                    titolo = a.get("titolo") or ""
+                    ora = a.get("ora") or ""
+                    label = (f"{ora} " if ora else "") + titolo
+                    cls = _pick_class(titolo)
+                    html.append(f"<span class='cal-event {cls}'>{label}</span>")
+                html.append("</div>")
+        html.append("</div>")
+        st.markdown("\n".join(html), unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("**Dettaglio giorno**")
         try:
             selected_date = date.fromisoformat(st.session_state.cal_selected_date)
         except Exception:
             selected_date = date.today()
             st.session_state.cal_selected_date = selected_date.isoformat()
 
-        st.markdown(f"**{selected_date.strftime('%A %d/%m/%Y')}**")
-        # Compatibilità: se il DB module è vecchio, evita crash
+        # selettore giorno (comodo su mobile)
+        picked = st.date_input("Seleziona giorno", value=selected_date)
+        if picked.isoformat() != st.session_state.cal_selected_date:
+            st.session_state.cal_selected_date = picked.isoformat()
+            st.rerun()
+
+        # carica appuntamenti giorno
         if hasattr(db, "get_appuntamenti_by_date"):
-            day_apps = db.get_appuntamenti_by_date(selected_date.isoformat())
+            day_apps = db.get_appuntamenti_by_date(picked.isoformat())
         else:
             conn = db.get_connection()
             try:
                 rows = conn.execute(
                     "SELECT * FROM appuntamenti WHERE data = ? ORDER BY ora",
-                    (selected_date.isoformat(),),
+                    (picked.isoformat(),),
                 ).fetchall()
                 day_apps = [dict(r) for r in rows]
             finally:
@@ -2190,7 +2278,6 @@ def render_calendario():
         st.markdown("**➕ Nuovo appuntamento**")
         clienti = db.get_clienti()
         cli_opts = [("", "— Nessun cliente —")] + [(c['id'], c['ragione_sociale']) for c in clienti]
-
         with st.form("form_app"):
             titolo = st.text_input("Titolo *", placeholder="Es. Giro visite / consegna / degustazione")
             senza_ora = st.checkbox("Senza ora (tutto il giorno)", value=False)
@@ -2200,7 +2287,6 @@ def render_calendario():
             cliente_id = st.selectbox("Cliente", options=[x[0] for x in cli_opts], format_func=lambda _id: dict(cli_opts).get(_id, ""))
             luogo = st.text_input("Luogo", placeholder="Indirizzo / città")
             note = st.text_area("Note")
-
             saved = st.form_submit_button("Salva", type="primary", use_container_width=True)
             if saved:
                 if not titolo:
@@ -2214,7 +2300,7 @@ def render_calendario():
                         ora_str = None
                     db.save_appuntamento({
                         'titolo': titolo,
-                        'data': selected_date.isoformat(),
+                        'data': picked.isoformat(),
                         'ora': ora_str,
                         'cliente_id': cliente_id or None,
                         'luogo': luogo,
@@ -2222,6 +2308,27 @@ def render_calendario():
                     })
                     st.success("Appuntamento salvato")
                     st.rerun()
+
+    # --- ELENCO ---
+    if view == "Elenco":
+        st.markdown("**Appuntamenti del mese**")
+        if not month_apps:
+            st.info("Nessun appuntamento nel mese")
+        else:
+            for a in month_apps:
+                st.write(f"{a.get('data','')}  {a.get('ora') or ''}  —  {a.get('titolo','')}")
+
+    # --- GIORNO ---
+    if view == "Giorno":
+        st.markdown("Seleziona un giorno nella vista **Mese** (oppure col selettore) per vedere il dettaglio.")
+
+    # --- SETTIMANA ---
+    if view == "Sett.":
+        st.markdown("Vista settimana (in arrivo). Per ora usa **Mese** o **Elenco**.")
+
+    # --- PLANNER ---
+    if view == "Planner":
+        st.markdown("Planner (in arrivo): lista attività con priorità e scadenze.")
 
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     render_bottom_nav()
