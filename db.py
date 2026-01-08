@@ -1084,6 +1084,70 @@ def get_fatturato_per_azienda(anno: int = None) -> List[Dict]:
         conn.close()
 
 
+def get_fatturato_mensile_series(mesi: int = 12) -> List[Dict]:
+    """Serie fatturato mensile (ultimi N mesi) per grafici dashboard."""
+    conn = get_connection()
+    try:
+        oggi = date.today()
+        # Lista mesi YYYY-MM (dal più vecchio al più recente)
+        months = []
+        y, m = oggi.year, oggi.month
+        for i in range(mesi - 1, -1, -1):
+            mm = m - i
+            yy = y
+            while mm <= 0:
+                mm += 12
+                yy -= 1
+            while mm > 12:
+                mm -= 12
+                yy += 1
+            months.append(f"{yy:04d}-{mm:02d}")
+
+        start = f"{months[0]}-01"
+
+        rows = conn.execute(
+            """
+            SELECT substr(data_ordine, 1, 7) AS ym,
+                   COALESCE(SUM(totale_finale), 0) AS fatturato
+            FROM ordini
+            WHERE data_ordine >= ?
+              AND stato != 'annullato'
+            GROUP BY ym
+            ORDER BY ym
+            """,
+            (start,),
+        ).fetchall()
+        mappa = {r["ym"]: float(r["fatturato"] or 0) for r in rows}
+
+        out = []
+        for ym in months:
+            out.append({"mese": ym, "fatturato": mappa.get(ym, 0.0)})
+        return out
+    finally:
+        conn.close()
+
+
+def get_ordini_stato_counts_current_month() -> List[Dict]:
+    """Conteggio ordini per stato nel mese corrente."""
+    conn = get_connection()
+    try:
+        primo_mese = date.today().replace(day=1).isoformat()
+        rows = conn.execute(
+            """
+            SELECT stato, COUNT(*) AS conteggio
+            FROM ordini
+            WHERE data_ordine >= ?
+              AND stato != 'annullato'
+            GROUP BY stato
+            ORDER BY conteggio DESC
+            """,
+            (primo_mese,),
+        ).fetchall()
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
 def get_fatturato_per_cliente(anno: int = None, limit: int = 20) -> List[Dict]:
     """Ottiene il fatturato raggruppato per cliente"""
     conn = get_connection()

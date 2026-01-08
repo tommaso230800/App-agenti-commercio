@@ -109,6 +109,88 @@ st.markdown("""
         padding: 1rem 1rem 6rem 1rem;
         max-width: 100%;
     }
+
+    /* Inputs & buttons (global polish) */
+    div[data-baseweb="select"] > div,
+    .stTextInput input,
+    .stNumberInput input,
+    .stTextArea textarea,
+    .stDateInput input,
+    .stTimeInput input {
+        border-radius: 14px !important;
+        border: 1px solid var(--gray-200) !important;
+        background: var(--white) !important;
+        box-shadow: var(--shadow-sm) !important;
+    }
+
+    .stButton > button {
+        border-radius: 14px !important;
+        font-weight: 600 !important;
+        box-shadow: var(--shadow) !important;
+        border: 1px solid var(--gray-200) !important;
+        padding: 0.65rem 0.9rem !important;
+    }
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, var(--primary), var(--primary-light)) !important;
+        border: none !important;
+    }
+
+    /* Section card */
+    .section-card {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 18px;
+        padding: 1rem;
+        box-shadow: var(--shadow-md);
+        margin-bottom: 1rem;
+    }
+    .section-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin: 0 0 0.75rem 0;
+        display:flex;
+        align-items:center;
+        gap: 0.5rem;
+    }
+
+    /* KPI */
+    .kpi {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 18px;
+        padding: 1rem;
+        box-shadow: var(--shadow-md);
+    }
+    .kpi-top { display:flex; align-items:center; justify-content:space-between; }
+    .kpi-icon {
+        width: 38px; height: 38px; border-radius: 12px;
+        display:flex; align-items:center; justify-content:center;
+        background: var(--gray-100);
+        font-size: 1.1rem;
+    }
+    .kpi-value { font-size: 1.45rem; font-weight: 800; margin-top: 0.4rem; }
+    .kpi-label { color: var(--gray-500); font-weight: 600; font-size: 0.9rem; }
+
+    /* Action tiles */
+    .action-tile {
+        background: linear-gradient(135deg, #ffffff, #f9fafb);
+        border: 1px solid var(--gray-200);
+        border-radius: 18px;
+        padding: 1rem;
+        box-shadow: var(--shadow-md);
+        height: 100%;
+    }
+    .action-title { font-weight: 800; margin: 0.25rem 0; }
+    .action-sub { color: var(--gray-500); font-size: 0.9rem; margin: 0; }
+
+    /* Tables */
+    .stDataFrame, div[data-testid="stTable"] {
+        border-radius: 18px !important;
+        overflow: hidden !important;
+        border: 1px solid var(--gray-200) !important;
+        box-shadow: var(--shadow-md) !important;
+    }
     
     /* Hide Streamlit elements */
     #MainMenu, footer, header, [data-testid="stToolbar"] {
@@ -838,111 +920,154 @@ def render_login():
 
 def render_dashboard():
     render_top_nav("Dashboard", datetime.now().strftime("%A %d %B %Y").capitalize(), show_back=False)
-    
-    # Metriche
-    stats = db.get_statistiche_dashboard()
-    render_metrics_grid([
-        (str(stats.get('totale_clienti', 0)), "Clienti"),
-        (str(stats.get('ordini_mese', 0)), "Ordini Mese"),
-        (format_currency(stats.get('fatturato_mese', 0)), "Fatt. Mese"),
-        (format_currency(stats.get('fatturato_anno', 0)), "Fatt. Anno"),
-    ])
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Azioni rapide
-    st.markdown("**⚡ Azioni Rapide**")
-    col1, col2, col3, col4, col5 = st.columns(5)
-    
-    with col1:
-        if st.button("➕\nNuovo Ordine", key="action_ordine", use_container_width=True):
-            reset_ordine()
-            navigate_to('nuovo_ordine')
-            st.rerun()
-    with col2:
-        if st.button("👥\nClienti", key="action_clienti", use_container_width=True):
-            navigate_to('clienti')
-            st.rerun()
-    with col3:
-        if st.button("🏭\nAziende", key="action_aziende", use_container_width=True):
-            navigate_to('aziende')
-            st.rerun()
-    with col4:
-        if st.button("📅\nCalendario", key="action_calendario", use_container_width=True):
-            navigate_to('calendario')
-            st.rerun()
 
-    with col5:
-        if st.button("⏰\nPromemoria", key="action_promemoria", use_container_width=True):
-            navigate_to('promemoria')
-            st.rerun()
-    
+    stats = db.get_statistiche_dashboard()
+
+    # --- KPI (più professionale) ---
+    k1, k2, k3, k4, k5, k6 = st.columns(6)
+    kpis = [
+        (k1, "👥", str(stats.get('totale_clienti', 0)), "Clienti"),
+        (k2, "🏭", str(stats.get('totale_aziende', 0)), "Aziende"),
+        (k3, "📦", str(stats.get('ordini_mese', 0)), "Ordini mese"),
+        (k4, "💶", format_currency(stats.get('fatturato_mese', 0)), "Fatturato mese"),
+        (k5, "📈", format_currency(stats.get('fatturato_anno', 0)), "Fatturato anno"),
+        (k6, "⏰", str(stats.get('promemoria_oggi', 0)), "Promemoria oggi"),
+    ]
+    for col, ico, val, lab in [(x[0], x[1], x[2], x[3]) for x in kpis]:
+        with col:
+            st.markdown(
+                f"""
+                <div class="kpi">
+                    <div class="kpi-top">
+                        <div class="kpi-icon">{ico}</div>
+                    </div>
+                    <div class="kpi-value">{val}</div>
+                    <div class="kpi-label">{lab}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Prossimi appuntamenti e promemoria
-    left, right = st.columns(2)
-    today = date.today()
+
+    # --- Quick actions (tile + bottoni) ---
+    st.markdown("<div class='section-title'>⚡ Azioni rapide</div>", unsafe_allow_html=True)
+    a1, a2, a3, a4, a5 = st.columns(5)
+    with a1:
+        st.markdown("<div class='action-tile'><div class='action-title'>➕ Nuovo ordine</div><p class='action-sub'>Crea e invia un ordine</p></div>", unsafe_allow_html=True)
+        if st.button("Apri", key="dash_new_order", use_container_width=True, type="primary"):
+            reset_ordine(); navigate_to('nuovo_ordine'); st.rerun()
+    with a2:
+        st.markdown("<div class='action-tile'><div class='action-title'>👥 Clienti</div><p class='action-sub'>Anagrafica e contatti</p></div>", unsafe_allow_html=True)
+        if st.button("Apri", key="dash_clienti", use_container_width=True):
+            navigate_to('clienti'); st.rerun()
+    with a3:
+        st.markdown("<div class='action-tile'><div class='action-title'>🏭 Aziende</div><p class='action-sub'>Fornitori e cataloghi</p></div>", unsafe_allow_html=True)
+        if st.button("Apri", key="dash_aziende", use_container_width=True):
+            navigate_to('aziende'); st.rerun()
+    with a4:
+        st.markdown("<div class='action-tile'><div class='action-title'>📅 Calendario</div><p class='action-sub'>Visite e appuntamenti</p></div>", unsafe_allow_html=True)
+        if st.button("Apri", key="dash_cal", use_container_width=True):
+            navigate_to('calendario'); st.rerun()
+    with a5:
+        st.markdown("<div class='action-tile'><div class='action-title'>⏰ Promemoria</div><p class='action-sub'>Scadenze e note</p></div>", unsafe_allow_html=True)
+        if st.button("Apri", key="dash_prom", use_container_width=True):
+            navigate_to('promemoria'); st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- Analisi (grafici) ---
+    left, right = st.columns([2, 1])
     with left:
-        st.markdown("**📅 Prossimi appuntamenti (7 gg)**")
+        st.markdown("<div class='section-card'><div class='section-title'>📈 Andamento fatturato (ultimi 12 mesi)</div>", unsafe_allow_html=True)
         try:
-            if hasattr(db, "get_appuntamenti_range"):
-                apps = db.get_appuntamenti_range(today.isoformat(), (today + timedelta(days=7)).isoformat())
-            else:
-                apps = []
+            series = db.get_fatturato_mensile_series(12)
+        except Exception:
+            series = []
+        if series:
+            df = pd.DataFrame(series)
+            fig = px.line(df, x="mese", y="fatturato", markers=True, template="plotly_white")
+            fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), font=dict(family="Inter"))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Nessun dato disponibile")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with right:
+        st.markdown("<div class='section-card'><div class='section-title'>📌 Stato ordini (mese)</div>", unsafe_allow_html=True)
+        try:
+            counts = db.get_ordini_stato_counts_current_month()
+        except Exception:
+            counts = []
+        if counts:
+            dfc = pd.DataFrame(counts)
+            fig2 = px.pie(dfc, names="stato", values="conteggio", hole=0.55, template="plotly_white")
+            fig2.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), font=dict(family="Inter"), showlegend=True)
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.info("Nessun ordine nel mese")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- Pianificazione (appuntamenti + promemoria) ---
+    p1, p2 = st.columns(2)
+    today = date.today()
+    with p1:
+        st.markdown("<div class='section-card'><div class='section-title'>📅 Prossimi appuntamenti (7 gg)</div>", unsafe_allow_html=True)
+        try:
+            apps = db.get_appuntamenti_range(today.isoformat(), (today + timedelta(days=7)).isoformat()) if hasattr(db, "get_appuntamenti_range") else []
         except Exception:
             apps = []
-
         if not apps:
             st.info("Nessun appuntamento nei prossimi 7 giorni")
         else:
-            for a in apps[:6]:
-                st.markdown(
-                    f"- **{str(a.get('data'))} {a.get('ora') or ''}** · {a.get('titolo','')}"
-                )
+            for a in apps[:8]:
+                st.markdown(f"- **{format_date(a.get('data'))} {a.get('ora') or ''}** · {a.get('titolo','')}")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    with right:
-        st.markdown("**⏰ Promemoria in scadenza (7 gg)**")
+    with p2:
+        st.markdown("<div class='section-card'><div class='section-title'>⏰ Promemoria in scadenza (7 gg)</div>", unsafe_allow_html=True)
         try:
             proms = db.get_promemoria(solo_attivi=True)
             proms = [p for p in proms if p.get('data_scadenza') and str(p['data_scadenza']) <= (today + timedelta(days=7)).isoformat()]
         except Exception:
             proms = []
-
         if not proms:
             st.info("Nessun promemoria in scadenza")
         else:
-            for p in proms[:6]:
+            for p in proms[:8]:
                 st.markdown(f"- **{format_date(p.get('data_scadenza'))}** · {p.get('titolo','')}")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Ultimi ordini
-    st.markdown("**📦 Ultimi Ordini**")
-    ordini = db.get_ordini(limit=5)
-    
-    if ordini:
+    # --- Ultimi ordini (card più pulite) ---
+    st.markdown("<div class='section-card'><div class='section-title'>📦 Ultimi ordini</div>", unsafe_allow_html=True)
+    ordini = db.get_ordini(limit=8)
+    if not ordini:
+        st.info("Nessun ordine presente")
+    else:
         for o in ordini:
             badge_class = "badge-inviato" if o['stato'] == 'inviato' else "badge-bozza"
             stato_label = "INVIATO" if o['stato'] == 'inviato' else "BOZZA"
-            
             st.markdown(f"""
-                <div class="list-item">
+                <div class="list-item" style="margin-bottom:0.75rem;">
                     <div class="list-item-header">
                         <div>
                             <p class="list-item-title">{o['numero']}</p>
-                            <p class="list-item-subtitle">{o.get('cliente_ragione_sociale', 'N/D')}</p>
+                            <p class="list-item-subtitle">{o.get('cliente_ragione_sociale', 'N/D')} · {o.get('azienda_nome','')}</p>
                         </div>
                         <span class="badge {badge_class}">{stato_label}</span>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <span class="list-item-meta">{format_date(o['data_ordine'])} · {o.get('azienda_nome', '')}</span>
+                        <span class="list-item-meta">{format_date(o['data_ordine'])}</span>
                         <span class="product-price">{format_currency(o['totale_finale'])}</span>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
-    else:
-        st.info("Nessun ordine presente")
-    
+    st.markdown("</div>", unsafe_allow_html=True)
+
     st.markdown("<br><br>", unsafe_allow_html=True)
 
 
