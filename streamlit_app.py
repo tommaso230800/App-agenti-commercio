@@ -1,7 +1,6 @@
 """
 PORTALE AGENTE DI COMMERCIO
-Applicazione Principale Streamlit
-VERSIONE PERFETTA - Stile Order Sender
+Versione 2.0 - UI Professionale Migliorata
 """
 
 import streamlit as st
@@ -23,11 +22,11 @@ st.set_page_config(
     page_title="Portale Agente",
     page_icon="💼",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ============================================
-# CSS PERSONALIZZATO - STILE PREMIUM
+# CSS PREMIUM - UI PROFESSIONALE
 # ============================================
 
 st.markdown("""
@@ -37,7 +36,8 @@ st.markdown("""
     :root {
         --primary: #1e3a5f;
         --primary-light: #2d5a87;
-        --secondary: #3b82f6;
+        --primary-dark: #152a45;
+        --accent: #3b82f6;
         --success: #10b981;
         --warning: #f59e0b;
         --danger: #ef4444;
@@ -45,104 +45,561 @@ st.markdown("""
         --gray-100: #f3f4f6;
         --gray-200: #e5e7eb;
         --gray-300: #d1d5db;
+        --gray-400: #9ca3af;
         --gray-500: #6b7280;
+        --gray-600: #4b5563;
         --gray-700: #374151;
         --gray-800: #1f2937;
+        --gray-900: #111827;
+        --white: #ffffff;
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
     }
     
-    * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important; }
+    * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    }
     
-    .main .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 1400px; }
+    /* Main container */
+    .main .block-container {
+        padding: 1rem 1rem 6rem 1rem;
+        max-width: 100%;
+    }
     
-    [data-testid="stSidebar"] { background: linear-gradient(180deg, var(--primary) 0%, var(--primary-light) 100%); }
-    [data-testid="stSidebar"] .stMarkdown { color: white; }
+    /* Hide Streamlit elements */
+    #MainMenu, footer, header, [data-testid="stToolbar"] {
+        display: none !important;
+    }
     
-    .metric-card {
-        background: white;
+    /* Top Navigation Bar */
+    .top-nav {
+        background: var(--white);
+        border-bottom: 1px solid var(--gray-200);
+        padding: 0.75rem 1rem;
+        margin: -1rem -1rem 1rem -1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+    
+    .top-nav-left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .top-nav-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--gray-800);
+        margin: 0;
+    }
+    
+    .top-nav-subtitle {
+        font-size: 0.8rem;
+        color: var(--gray-500);
+        margin: 0;
+    }
+    
+    /* Back button */
+    .btn-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.5rem 0.75rem;
+        background: var(--gray-100);
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        color: var(--gray-600);
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-decoration: none;
+    }
+    
+    .btn-back:hover {
+        background: var(--gray-200);
+        color: var(--gray-800);
+    }
+    
+    /* Cards */
+    .card {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
         border-radius: 12px;
         padding: 1.25rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-        border: 1px solid var(--gray-200);
-        text-align: center;
+        margin-bottom: 1rem;
+        box-shadow: var(--shadow-sm);
     }
     
-    .metric-value { font-size: 1.75rem; font-weight: 700; color: var(--primary); }
-    .metric-label { font-size: 0.8rem; color: var(--gray-500); text-transform: uppercase; }
+    .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--gray-100);
+    }
     
-    .page-header {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-        color: white;
-        padding: 1.5rem 2rem;
-        border-radius: 16px;
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--gray-800);
+        margin: 0;
+    }
+    
+    /* Metric Cards */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
         margin-bottom: 1.5rem;
     }
     
-    .page-header h1 { margin: 0; font-size: 1.75rem; font-weight: 700; }
-    .page-header p { margin: 0.5rem 0 0 0; opacity: 0.9; }
-    
-    .card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        border: 1px solid var(--gray-200);
-        margin-bottom: 1rem;
+    @media (min-width: 768px) {
+        .metrics-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
     }
     
-    .badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
+    .metric-card {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+    
+    .metric-card:hover {
+        border-color: var(--accent);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+        line-height: 1.2;
+        margin-bottom: 0.25rem;
+    }
+    
+    .metric-label {
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: var(--gray-500);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    /* List Items */
+    .list-item {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.15s ease;
+        cursor: pointer;
+    }
+    
+    .list-item:hover {
+        border-color: var(--accent);
+        box-shadow: var(--shadow);
+    }
+    
+    .list-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+    
+    .list-item-title {
         font-weight: 600;
+        color: var(--gray-800);
+        font-size: 0.95rem;
+        margin: 0;
+    }
+    
+    .list-item-subtitle {
+        font-size: 0.8rem;
+        color: var(--gray-500);
+        margin: 0;
+    }
+    
+    .list-item-meta {
+        font-size: 0.75rem;
+        color: var(--gray-400);
+    }
+    
+    /* Badges */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.625rem;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
     }
     
     .badge-bozza { background: #fef3c7; color: #92400e; }
     .badge-inviato { background: #d1fae5; color: #065f46; }
-    .badge-alta { background: #fee2e2; color: #991b1b; }
-    .badge-media { background: #fef3c7; color: #92400e; }
-    .badge-bassa { background: #d1fae5; color: #065f46; }
+    .badge-warning { background: #fee2e2; color: #991b1b; }
+    .badge-info { background: #dbeafe; color: #1e40af; }
+    .badge-success { background: #d1fae5; color: #065f46; }
     
-    .ordine-row {
-        background: white;
-        border: 1px solid var(--gray-200);
-        border-radius: 12px;
-        padding: 1rem 1.25rem;
-        margin-bottom: 0.75rem;
+    /* Action Buttons Grid */
+    .actions-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
     }
     
-    .ordine-row:hover { border-color: var(--secondary); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    @media (min-width: 768px) {
+        .actions-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
     
-    .stButton > button { border-radius: 8px; font-weight: 500; }
+    .action-btn {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 12px;
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
     
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    .action-btn:hover {
+        border-color: var(--primary);
+        background: var(--gray-50);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .action-btn-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .action-btn-label {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--gray-700);
+    }
+    
+    /* Form styling */
+    .stTextInput > div > div > input,
+    .stSelectbox > div > div,
+    .stNumberInput > div > div > input,
+    .stTextArea > div > div > textarea {
+        border-radius: 8px !important;
+        border-color: var(--gray-300) !important;
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+    }
+    
+    /* Buttons */
+    .stButton > button {
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+        padding: 0.5rem 1rem !important;
+        transition: all 0.15s ease !important;
+    }
+    
+    .stButton > button[kind="primary"] {
+        background: var(--primary) !important;
+        border: none !important;
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        background: var(--primary-light) !important;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    /* Section header */
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+    
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--gray-800);
+        margin: 0;
+    }
+    
+    .section-count {
+        font-size: 0.8rem;
+        color: var(--gray-500);
+    }
+    
+    /* Floating button */
+    .fab {
+        position: fixed;
+        bottom: 5rem;
+        right: 1rem;
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        background: var(--primary);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        box-shadow: var(--shadow-lg);
+        cursor: pointer;
+        z-index: 90;
+        transition: all 0.2s ease;
+    }
+    
+    .fab:hover {
+        transform: scale(1.05);
+        background: var(--primary-light);
+    }
+    
+    /* Bottom Navigation */
+    .bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--white);
+        border-top: 1px solid var(--gray-200);
+        padding: 0.5rem 0.25rem;
+        display: flex;
+        justify-content: space-around;
+        z-index: 100;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0.375rem 0.75rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-decoration: none;
+        min-width: 60px;
+    }
+    
+    .nav-item:hover {
+        background: var(--gray-100);
+    }
+    
+    .nav-item.active {
+        color: var(--primary);
+    }
+    
+    .nav-item.active .nav-icon {
+        color: var(--primary);
+    }
+    
+    .nav-icon {
+        font-size: 1.25rem;
+        margin-bottom: 0.125rem;
+        color: var(--gray-500);
+    }
+    
+    .nav-label {
+        font-size: 0.65rem;
+        font-weight: 500;
+        color: var(--gray-500);
+    }
+    
+    .nav-item.active .nav-label {
+        color: var(--primary);
+    }
+    
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--gray-500);
+    }
+    
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .empty-state-title {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state-text {
+        font-size: 0.875rem;
+        color: var(--gray-400);
+    }
+    
+    /* Expander fix */
+    .streamlit-expanderHeader {
+        font-weight: 500 !important;
+        font-size: 0.9rem !important;
+    }
+    
+    /* Product row in order */
+    .product-row {
+        background: var(--white);
+        border: 1px solid var(--gray-200);
+        border-radius: 10px;
+        padding: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .product-row.in-cart {
+        border-color: var(--success);
+        background: #f0fdf4;
+    }
+    
+    .product-name {
+        font-weight: 600;
+        color: var(--gray-800);
+        font-size: 0.9rem;
+    }
+    
+    .product-info {
+        font-size: 0.75rem;
+        color: var(--gray-500);
+    }
+    
+    .product-price {
+        font-weight: 700;
+        color: var(--primary);
+    }
+    
+    /* Step indicator */
+    .steps {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding: 0 1rem;
+    }
+    
+    .step-item {
+        display: flex;
+        align-items: center;
+    }
+    
+    .step-circle {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .step-circle.active {
+        background: var(--primary);
+        color: white;
+    }
+    
+    .step-circle.completed {
+        background: var(--success);
+        color: white;
+    }
+    
+    .step-circle.inactive {
+        background: var(--gray-200);
+        color: var(--gray-500);
+    }
+    
+    .step-line {
+        width: 24px;
+        height: 2px;
+        margin: 0 0.25rem;
+    }
+    
+    .step-line.active {
+        background: var(--primary);
+    }
+    
+    .step-line.inactive {
+        background: var(--gray-200);
+    }
+    
+    /* Order summary bar */
+    .order-summary-bar {
+        position: fixed;
+        bottom: 60px;
+        left: 0;
+        right: 0;
+        background: var(--primary);
+        color: white;
+        padding: 0.75rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 95;
+    }
+    
+    .summary-item {
+        text-align: center;
+    }
+    
+    .summary-value {
+        font-size: 1rem;
+        font-weight: 700;
+    }
+    
+    .summary-label {
+        font-size: 0.65rem;
+        opacity: 0.8;
+        text-transform: uppercase;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 
 # ============================================
-# INIZIALIZZAZIONE SESSION STATE
+# SESSION STATE
 # ============================================
 
 def init_session_state():
-    """Inizializza tutte le variabili di sessione"""
     defaults = {
         'authenticated': False,
         'current_page': 'dashboard',
+        'page_history': ['dashboard'],
+        # Ordine
         'ordine_step': 1,
         'ordine_azienda_id': None,
         'ordine_cliente_id': None,
-        'ordine_sede_alternativa': False,
         'ordine_righe': [],
         'ordine_dettagli': {},
-        'ordine_id': None,
-        'search_cliente': '',
-        'search_prodotto': '',
-        'solo_prodotti_acquistati': False,
+        # UI
         'show_form': False,
         'editing_id': None,
+        'selected_azienda_view': None,  # Per vedere prodotti di un'azienda
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -154,8 +611,26 @@ APP_PASSWORD = "demo123"
 
 
 # ============================================
-# FUNZIONI HELPER
+# NAVIGATION HELPERS
 # ============================================
+
+def navigate_to(page: str, add_to_history: bool = True):
+    """Naviga a una pagina"""
+    if add_to_history and st.session_state.current_page != page:
+        st.session_state.page_history.append(st.session_state.current_page)
+    st.session_state.current_page = page
+    st.session_state.show_form = False
+    st.session_state.editing_id = None
+
+def go_back():
+    """Torna alla pagina precedente"""
+    if len(st.session_state.page_history) > 1:
+        st.session_state.page_history.pop()
+        st.session_state.current_page = st.session_state.page_history[-1]
+    else:
+        st.session_state.current_page = 'dashboard'
+    st.session_state.show_form = False
+
 
 def format_currency(value) -> str:
     try:
@@ -182,19 +657,13 @@ def reset_ordine():
     st.session_state.ordine_step = 1
     st.session_state.ordine_azienda_id = None
     st.session_state.ordine_cliente_id = None
-    st.session_state.ordine_sede_alternativa = False
     st.session_state.ordine_righe = []
     st.session_state.ordine_dettagli = {}
-    st.session_state.ordine_id = None
 
 def calcola_totali_ordine() -> dict:
-    totale_pezzi = 0
-    totale_cartoni = 0
-    imponibile = 0
-    for riga in st.session_state.ordine_righe:
-        totale_pezzi += riga.get('quantita_totale', 0)
-        totale_cartoni += riga.get('quantita_cartoni', 0)
-        imponibile += riga.get('importo_riga', 0)
+    totale_pezzi = sum(r.get('quantita_totale', 0) for r in st.session_state.ordine_righe)
+    totale_cartoni = sum(r.get('quantita_cartoni', 0) for r in st.session_state.ordine_righe)
+    imponibile = sum(r.get('importo_riga', 0) for r in st.session_state.ordine_righe)
     sconto = st.session_state.ordine_dettagli.get('sconto_chiusura', 0) or 0
     sconto_euro = imponibile * (sconto / 100) if sconto > 0 else 0
     return {
@@ -207,82 +676,88 @@ def calcola_totali_ordine() -> dict:
 
 
 # ============================================
-# COMPONENTI UI
+# UI COMPONENTS
 # ============================================
 
-def render_page_header(title: str, subtitle: str = None):
-    subtitle_html = f'<p>{subtitle}</p>' if subtitle else ''
-    st.markdown(f'<div class="page-header"><h1>{title}</h1>{subtitle_html}</div>', unsafe_allow_html=True)
+def render_top_nav(title: str, subtitle: str = None, show_back: bool = True):
+    """Barra di navigazione superiore compatta"""
+    col1, col2, col3 = st.columns([1, 4, 1])
+    
+    with col1:
+        if show_back and st.session_state.current_page != 'dashboard':
+            if st.button("← Indietro", key="btn_back", use_container_width=True):
+                go_back()
+                st.rerun()
+    
+    with col2:
+        st.markdown(f"**{title}**" + (f" · <span style='color:#6b7280;font-size:0.85rem;'>{subtitle}</span>" if subtitle else ""), unsafe_allow_html=True)
+    
+    with col3:
+        pass
+    
+    st.markdown("<hr style='margin:0.5rem 0 1rem 0;border:none;border-top:1px solid #e5e7eb;'>", unsafe_allow_html=True)
 
-def render_metric_card(label: str, value: str):
-    st.markdown(f'<div class="metric-card"><div class="metric-value">{value}</div><div class="metric-label">{label}</div></div>', unsafe_allow_html=True)
 
-def render_step_indicator(current: int, steps: list):
-    cols = st.columns(len(steps))
-    for i, (col, name) in enumerate(zip(cols, steps), 1):
+def render_bottom_nav():
+    """Barra di navigazione inferiore"""
+    nav_items = [
+        ('dashboard', '🏠', 'Home'),
+        ('ordini', '📋', 'Ordini'),
+        ('nuovo_ordine', '➕', 'Nuovo'),
+        ('clienti', '👥', 'Clienti'),
+        ('aziende', '🏭', 'Aziende'),
+    ]
+    
+    cols = st.columns(len(nav_items))
+    for col, (page_id, icon, label) in zip(cols, nav_items):
         with col:
-            if i < current:
-                st.success(f"✓ {i}. {name}")
-            elif i == current:
-                st.info(f"● {i}. {name}")
-            else:
-                st.write(f"○ {i}. {name}")
-
-
-# ============================================
-# SIDEBAR
-# ============================================
-
-def render_sidebar():
-    with st.sidebar:
-        st.markdown('<div style="text-align:center;padding:1rem 0;"><span style="font-size:2.5rem;">💼</span><h2 style="color:white;margin:0;">Portale Agente</h2></div>', unsafe_allow_html=True)
-        st.markdown("---")
-        
-        menu = [
-            ('dashboard', '📊 Dashboard'),
-            ('ordini', '📋 Lista Ordini'),
-            ('nuovo_ordine', '➕ Nuovo Ordine'),
-            ('clienti', '👥 Clienti'),
-            ('aziende', '🏭 Aziende'),
-            ('prodotti', '📦 Prodotti'),
-            ('calendario', '📅 Calendario'),
-            ('promemoria', '🔔 Promemoria'),
-            ('report', '📈 Report'),
-            ('impostazioni', '⚙️ Impostazioni'),
-        ]
-        
-        for page_id, label in menu:
-            if st.button(label, key=f"nav_{page_id}", use_container_width=True, 
-                        type="primary" if st.session_state.current_page == page_id else "secondary"):
-                st.session_state.current_page = page_id
+            is_active = st.session_state.current_page == page_id
+            btn_type = "primary" if is_active else "secondary"
+            if st.button(f"{icon}\n{label}", key=f"nav_{page_id}", use_container_width=True, type=btn_type):
                 if page_id == 'nuovo_ordine':
                     reset_ordine()
+                navigate_to(page_id, add_to_history=True)
                 st.rerun()
-        
-        st.markdown("---")
-        if st.button("🚪 Logout", use_container_width=True):
-            st.session_state.authenticated = False
-            st.rerun()
+
+
+def render_metrics_grid(metrics: list):
+    """Griglia di metriche"""
+    cols = st.columns(len(metrics))
+    for col, (value, label) in zip(cols, metrics):
+        with col:
+            st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{value}</div>
+                    <div class="metric-label">{label}</div>
+                </div>
+            """, unsafe_allow_html=True)
 
 
 # ============================================
-# PAGINA LOGIN
+# LOGIN
 # ============================================
 
 def render_login():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown('<div style="text-align:center;padding:3rem 0;"><span style="font-size:4rem;">💼</span><h1 style="color:#1e3a5f;">Portale Agente</h1><p style="color:#6b7280;">Gestionale Commerciale Professionale</p></div>', unsafe_allow_html=True)
+        st.markdown("""
+            <div style="text-align:center;padding:4rem 0 2rem 0;">
+                <div style="font-size:4rem;margin-bottom:1rem;">💼</div>
+                <h1 style="color:#1e3a5f;font-size:1.75rem;margin-bottom:0.5rem;">Portale Agente</h1>
+                <p style="color:#6b7280;">Gestionale Commerciale</p>
+            </div>
+        """, unsafe_allow_html=True)
         
-        with st.form("login_form"):
-            password = st.text_input("Password", type="password")
-            if st.form_submit_button("🔐 Accedi", use_container_width=True, type="primary"):
-                if password == APP_PASSWORD:
-                    st.session_state.authenticated = True
-                    st.rerun()
-                else:
-                    st.error("❌ Password non corretta")
-        st.caption("Password demo: demo123")
+        password = st.text_input("Password", type="password", placeholder="Inserisci password")
+        
+        if st.button("Accedi", use_container_width=True, type="primary"):
+            if password == APP_PASSWORD:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Password non corretta")
+        
+        st.caption("Password: demo123")
 
 
 # ============================================
@@ -290,556 +765,814 @@ def render_login():
 # ============================================
 
 def render_dashboard():
-    render_page_header("Dashboard", f"Benvenuto! Oggi è {date.today().strftime('%A %d %B %Y')}")
+    render_top_nav("Dashboard", datetime.now().strftime("%A %d %B %Y").capitalize(), show_back=False)
     
-    # Statistiche
+    # Metriche
     stats = db.get_statistiche_dashboard()
-    
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        render_metric_card("Clienti", str(stats.get('totale_clienti', 0)))
-    with col2:
-        render_metric_card("Ordini Mese", str(stats.get('ordini_mese', 0)))
-    with col3:
-        render_metric_card("Fatturato Mese", format_currency(stats.get('fatturato_mese', 0)))
-    with col4:
-        render_metric_card("Fatturato Anno", format_currency(stats.get('fatturato_anno', 0)))
+    render_metrics_grid([
+        (str(stats.get('totale_clienti', 0)), "Clienti"),
+        (str(stats.get('ordini_mese', 0)), "Ordini Mese"),
+        (format_currency(stats.get('fatturato_mese', 0)), "Fatt. Mese"),
+        (format_currency(stats.get('fatturato_anno', 0)), "Fatt. Anno"),
+    ])
     
     st.markdown("<br>", unsafe_allow_html=True)
     
     # Azioni rapide
-    st.subheader("⚡ Azioni Rapide")
+    st.markdown("**⚡ Azioni Rapide**")
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        if st.button("➕ Nuovo Ordine", use_container_width=True, type="primary"):
-            st.session_state.current_page = 'nuovo_ordine'
+        if st.button("➕\nNuovo Ordine", key="action_ordine", use_container_width=True):
             reset_ordine()
+            navigate_to('nuovo_ordine')
             st.rerun()
     with col2:
-        if st.button("👥 Nuovo Cliente", use_container_width=True):
-            st.session_state.current_page = 'clienti'
-            st.session_state.show_form = True
+        if st.button("👥\nClienti", key="action_clienti", use_container_width=True):
+            navigate_to('clienti')
             st.rerun()
     with col3:
-        if st.button("📅 Calendario", use_container_width=True):
-            st.session_state.current_page = 'calendario'
+        if st.button("🏭\nAziende", key="action_aziende", use_container_width=True):
+            navigate_to('aziende')
             st.rerun()
     with col4:
-        if st.button("🔔 Promemoria", use_container_width=True):
-            st.session_state.current_page = 'promemoria'
+        if st.button("🔔\nPromemoria", key="action_promemoria", use_container_width=True):
+            navigate_to('promemoria')
             st.rerun()
     
     st.markdown("<br>", unsafe_allow_html=True)
     
-    # Ultimi ordini e alert
-    col1, col2 = st.columns(2)
+    # Ultimi ordini
+    st.markdown("**📦 Ultimi Ordini**")
+    ordini = db.get_ordini(limit=5)
     
-    with col1:
-        st.subheader("📦 Ultimi Ordini")
-        ordini = db.get_ordini(limit=5)
-        if ordini:
-            for o in ordini:
-                stato_emoji = "🟠" if o['stato'] == 'bozza' else "🟢"
-                st.markdown(f"""
-                    <div class="ordine-row">
-                        <strong>{o['numero']}</strong> {stato_emoji} {o['stato'].upper()}<br>
-                        <span style="color:#6b7280;">{o.get('cliente_ragione_sociale', 'N/D')}</span><br>
-                        <strong style="color:#1e3a5f;">{format_currency(o['totale_finale'])}</strong>
-                        <span style="color:#9ca3af;"> - {format_date(o['data_ordine'])}</span>
+    if ordini:
+        for o in ordini:
+            badge_class = "badge-inviato" if o['stato'] == 'inviato' else "badge-bozza"
+            stato_label = "INVIATO" if o['stato'] == 'inviato' else "BOZZA"
+            
+            st.markdown(f"""
+                <div class="list-item">
+                    <div class="list-item-header">
+                        <div>
+                            <p class="list-item-title">{o['numero']}</p>
+                            <p class="list-item-subtitle">{o.get('cliente_ragione_sociale', 'N/D')}</p>
+                        </div>
+                        <span class="badge {badge_class}">{stato_label}</span>
                     </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.info("Nessun ordine presente")
-    
-    with col2:
-        st.subheader("🔔 Promemoria Urgenti")
-        promemoria = db.get_promemoria(solo_attivi=True)
-        oggi = date.today()
-        urgenti = [p for p in promemoria if p['data_scadenza'] and datetime.strptime(p['data_scadenza'].split('T')[0] if 'T' in p['data_scadenza'] else p['data_scadenza'], '%Y-%m-%d').date() <= oggi + timedelta(days=3)][:5]
-        
-        if urgenti:
-            for p in urgenti:
-                data_scad = datetime.strptime(p['data_scadenza'].split('T')[0] if 'T' in p['data_scadenza'] else p['data_scadenza'], '%Y-%m-%d').date()
-                if data_scad < oggi:
-                    badge = "🔴 SCADUTO"
-                elif data_scad == oggi:
-                    badge = "🟠 OGGI"
-                else:
-                    badge = "🟡 Prossimo"
-                
-                st.markdown(f"""
-                    <div class="ordine-row">
-                        <strong>{p['titolo']}</strong> <span class="badge">{badge}</span><br>
-                        <span style="color:#6b7280;">{p.get('cliente_nome', '')}</span>
-                        <span style="color:#9ca3af;"> - {format_date(p['data_scadenza'])}</span>
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span class="list-item-meta">{format_date(o['data_ordine'])} · {o.get('azienda_nome', '')}</span>
+                        <span class="product-price">{format_currency(o['totale_finale'])}</span>
                     </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.success("✨ Nessun promemoria urgente!")
-    
-    # Fatturato per azienda
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("🏭 Fatturato per Azienda")
-    
-    fatturato_aziende = db.get_fatturato_per_azienda()
-    if fatturato_aziende and any(a['fatturato'] for a in fatturato_aziende):
-        df = pd.DataFrame(fatturato_aziende)
-        df = df[df['fatturato'] > 0]
-        
-        if not df.empty:
-            fig = px.bar(df, x='nome', y='fatturato', 
-                        title='', 
-                        labels={'nome': 'Azienda', 'fatturato': 'Fatturato €'},
-                        color='fatturato',
-                        color_continuous_scale='Blues')
-            fig.update_layout(showlegend=False, height=300)
-            st.plotly_chart(fig, use_container_width=True)
+                </div>
+            """, unsafe_allow_html=True)
     else:
-        st.info("Nessun dato di fatturato disponibile")
+        st.info("Nessun ordine presente")
+    
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    render_bottom_nav()
 
 
 # ============================================
-# LISTA ORDINI
+# AZIENDE (con gestione prodotti)
+# ============================================
+
+def render_aziende():
+    render_top_nav("Aziende", "Fornitori e cataloghi")
+    
+    # Se stiamo visualizzando i prodotti di un'azienda
+    if st.session_state.selected_azienda_view:
+        render_azienda_prodotti()
+        return
+    
+    # Form nuova azienda
+    if st.session_state.show_form:
+        render_form_azienda()
+        return
+    
+    # Pulsante nuovo
+    if st.button("➕ Nuova Azienda", type="primary"):
+        st.session_state.show_form = True
+        st.session_state.editing_id = None
+        st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Lista aziende
+    aziende = db.get_aziende()
+    
+    if not aziende:
+        st.markdown("""
+            <div class="empty-state">
+                <div class="empty-state-icon">🏭</div>
+                <div class="empty-state-title">Nessuna azienda</div>
+                <div class="empty-state-text">Aggiungi la tua prima azienda per iniziare</div>
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"**{len(aziende)} aziende**")
+        
+        for azienda in aziende:
+            num_prodotti = len(db.get_prodotti(azienda_id=azienda['id']))
+            
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.markdown(f"""
+                    <div class="list-item">
+                        <div class="list-item-header">
+                            <div>
+                                <p class="list-item-title">🏭 {azienda['nome']}</p>
+                                <p class="list-item-subtitle">{azienda.get('ragione_sociale', '') or azienda.get('citta', '') or 'Nessuna descrizione'}</p>
+                            </div>
+                            <span class="badge badge-info">{num_prodotti} prodotti</span>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+            
+            with col2:
+                if st.button("📦", key=f"prod_{azienda['id']}", help="Gestisci prodotti"):
+                    st.session_state.selected_azienda_view = azienda['id']
+                    st.rerun()
+                if st.button("✏️", key=f"edit_{azienda['id']}", help="Modifica"):
+                    st.session_state.show_form = True
+                    st.session_state.editing_id = azienda['id']
+                    st.rerun()
+    
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    render_bottom_nav()
+
+
+def render_azienda_prodotti():
+    """Visualizza e gestisce i prodotti di un'azienda specifica"""
+    azienda = db.get_azienda(st.session_state.selected_azienda_view)
+    
+    if not azienda:
+        st.session_state.selected_azienda_view = None
+        st.rerun()
+        return
+    
+    # Header con pulsante indietro
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("← Indietro"):
+            st.session_state.selected_azienda_view = None
+            st.session_state.show_form = False
+            st.rerun()
+    with col2:
+        st.markdown(f"**{azienda['nome']}** · Catalogo Prodotti")
+    
+    st.markdown("<hr style='margin:0.5rem 0 1rem 0;border:none;border-top:1px solid #e5e7eb;'>", unsafe_allow_html=True)
+    
+    # Form prodotto
+    if st.session_state.show_form:
+        render_form_prodotto(azienda['id'])
+        return
+    
+    # Pulsante aggiungi prodotto
+    if st.button("➕ Aggiungi Prodotto", type="primary"):
+        st.session_state.show_form = True
+        st.session_state.editing_id = None
+        st.rerun()
+    
+    # Cerca
+    search = st.text_input("🔍 Cerca prodotto", placeholder="Nome o codice...")
+    
+    # Lista prodotti
+    prodotti = db.get_prodotti(azienda_id=azienda['id'], search=search if search else None, solo_disponibili=False)
+    
+    st.markdown(f"**{len(prodotti)} prodotti**")
+    
+    if not prodotti:
+        st.info("Nessun prodotto per questa azienda")
+    else:
+        for prod in prodotti:
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                disp = "✅" if prod.get('disponibile') else "❌"
+                st.markdown(f"""
+                    <div class="product-row">
+                        <div class="product-name">{prod['nome']} {disp}</div>
+                        <div class="product-info">Cod: {prod['codice']} · {prod['pezzi_per_cartone']} pz/cartone</div>
+                        <div class="product-price">{format_currency(prod['prezzo_listino'])}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                if st.button("✏️", key=f"ep_{prod['id']}"):
+                    st.session_state.show_form = True
+                    st.session_state.editing_id = prod['id']
+                    st.rerun()
+            with col3:
+                if st.button("🗑️", key=f"dp_{prod['id']}"):
+                    db.delete_prodotto(prod['id'])
+                    st.rerun()
+
+
+def render_form_azienda():
+    """Form per nuova/modifica azienda"""
+    azienda = None
+    if st.session_state.editing_id:
+        azienda = db.get_azienda(st.session_state.editing_id)
+    
+    st.markdown(f"**{'✏️ Modifica' if azienda else '➕ Nuova'} Azienda**")
+    
+    with st.form("form_azienda"):
+        nome = st.text_input("Nome Azienda *", value=azienda.get('nome', '') if azienda else '')
+        ragione_sociale = st.text_input("Ragione Sociale", value=azienda.get('ragione_sociale', '') if azienda else '')
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            indirizzo = st.text_input("Indirizzo", value=azienda.get('indirizzo', '') if azienda else '')
+            citta = st.text_input("Città", value=azienda.get('citta', '') if azienda else '')
+        with col2:
+            telefono = st.text_input("Telefono", value=azienda.get('telefono', '') if azienda else '')
+            email = st.text_input("Email", value=azienda.get('email', '') if azienda else '')
+        
+        partita_iva = st.text_input("Partita IVA", value=azienda.get('partita_iva', '') if azienda else '')
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            submitted = st.form_submit_button("💾 Salva", type="primary", use_container_width=True)
+        with col2:
+            cancelled = st.form_submit_button("❌ Annulla", use_container_width=True)
+        
+        if submitted:
+            if not nome:
+                st.error("Il nome è obbligatorio")
+            else:
+                data = {
+                    'nome': nome,
+                    'ragione_sociale': ragione_sociale,
+                    'indirizzo': indirizzo,
+                    'citta': citta,
+                    'telefono': telefono,
+                    'email': email,
+                    'partita_iva': partita_iva,
+                }
+                if st.session_state.editing_id:
+                    data['id'] = st.session_state.editing_id
+                db.save_azienda(data)
+                st.success("Salvato!")
+                st.session_state.show_form = False
+                st.session_state.editing_id = None
+                st.rerun()
+        
+        if cancelled:
+            st.session_state.show_form = False
+            st.session_state.editing_id = None
+            st.rerun()
+
+
+def render_form_prodotto(azienda_id: str):
+    """Form per nuovo/modifica prodotto"""
+    prodotto = None
+    if st.session_state.editing_id:
+        prodotto = db.get_prodotto(st.session_state.editing_id)
+    
+    st.markdown(f"**{'✏️ Modifica' if prodotto else '➕ Nuovo'} Prodotto**")
+    
+    with st.form("form_prodotto"):
+        col1, col2 = st.columns(2)
+        with col1:
+            codice = st.text_input("Codice *", value=prodotto.get('codice', '') if prodotto else '')
+            nome = st.text_input("Nome *", value=prodotto.get('nome', '') if prodotto else '')
+        with col2:
+            prezzo = st.number_input("Prezzo €", min_value=0.0, value=float(prodotto.get('prezzo_listino', 0)) if prodotto else 0.0, step=0.01)
+            pezzi_cartone = st.number_input("Pezzi/Cartone", min_value=1, value=int(prodotto.get('pezzi_per_cartone', 1)) if prodotto else 1)
+        
+        descrizione = st.text_input("Descrizione", value=prodotto.get('descrizione', '') if prodotto else '')
+        disponibile = st.checkbox("Disponibile", value=prodotto.get('disponibile', True) if prodotto else True)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            submitted = st.form_submit_button("💾 Salva", type="primary", use_container_width=True)
+        with col2:
+            cancelled = st.form_submit_button("❌ Annulla", use_container_width=True)
+        
+        if submitted:
+            if not codice or not nome:
+                st.error("Codice e nome obbligatori")
+            else:
+                data = {
+                    'azienda_id': azienda_id,
+                    'codice': codice,
+                    'nome': nome,
+                    'descrizione': descrizione,
+                    'prezzo_listino': prezzo,
+                    'pezzi_per_cartone': pezzi_cartone,
+                    'disponibile': 1 if disponibile else 0
+                }
+                if st.session_state.editing_id:
+                    data['id'] = st.session_state.editing_id
+                db.save_prodotto(data)
+                st.success("Salvato!")
+                st.session_state.show_form = False
+                st.session_state.editing_id = None
+                st.rerun()
+        
+        if cancelled:
+            st.session_state.show_form = False
+            st.session_state.editing_id = None
+            st.rerun()
+
+
+# ============================================
+# CLIENTI
+# ============================================
+
+def render_clienti():
+    render_top_nav("Clienti", "Anagrafica")
+    
+    if st.session_state.show_form:
+        render_form_cliente()
+        return
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        search = st.text_input("🔍 Cerca", placeholder="Ragione sociale, città...", label_visibility="collapsed")
+    with col2:
+        if st.button("➕ Nuovo", type="primary", use_container_width=True):
+            st.session_state.show_form = True
+            st.session_state.editing_id = None
+            st.rerun()
+    
+    clienti = db.get_clienti(search=search if search else None)
+    
+    st.markdown(f"**{len(clienti)} clienti**")
+    
+    if not clienti:
+        st.markdown("""
+            <div class="empty-state">
+                <div class="empty-state-icon">👥</div>
+                <div class="empty-state-title">Nessun cliente</div>
+                <div class="empty-state-text">Aggiungi il tuo primo cliente</div>
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        for cliente in clienti:
+            with st.expander(f"🏢 {cliente['ragione_sociale']} · {cliente.get('citta', '')} ({cliente.get('provincia', '')})"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"""
+                        **Codice:** {cliente.get('codice', '-')}<br>
+                        **Indirizzo:** {cliente.get('indirizzo', '-')}<br>
+                        **CAP/Città:** {cliente.get('cap', '')} {cliente.get('citta', '')} ({cliente.get('provincia', '')})
+                    """, unsafe_allow_html=True)
+                with col2:
+                    st.markdown(f"""
+                        **Telefono:** {cliente.get('telefono', '-')}<br>
+                        **Email:** {cliente.get('email', '-')}<br>
+                        **P.IVA:** {cliente.get('partita_iva', '-')}
+                    """, unsafe_allow_html=True)
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    if st.button("✏️ Modifica", key=f"ec_{cliente['id']}"):
+                        st.session_state.show_form = True
+                        st.session_state.editing_id = cliente['id']
+                        st.rerun()
+                with col2:
+                    if cliente.get('indirizzo'):
+                        st.link_button("🗺️ Maps", f"https://maps.google.com/?q={cliente['indirizzo']}, {cliente.get('citta', '')}")
+    
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    render_bottom_nav()
+
+
+def render_form_cliente():
+    """Form per nuovo/modifica cliente"""
+    cliente = None
+    if st.session_state.editing_id:
+        cliente = db.get_cliente(st.session_state.editing_id)
+    
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("← Indietro"):
+            st.session_state.show_form = False
+            st.session_state.editing_id = None
+            st.rerun()
+    with col2:
+        st.markdown(f"**{'✏️ Modifica' if cliente else '➕ Nuovo'} Cliente**")
+    
+    st.markdown("<hr style='margin:0.5rem 0 1rem 0;'>", unsafe_allow_html=True)
+    
+    with st.form("form_cliente"):
+        codice = st.text_input("Codice", value=cliente.get('codice', '') if cliente else '')
+        ragione_sociale = st.text_input("Ragione Sociale *", value=cliente.get('ragione_sociale', '') if cliente else '')
+        
+        indirizzo = st.text_input("Indirizzo", value=cliente.get('indirizzo', '') if cliente else '')
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            citta = st.text_input("Città", value=cliente.get('citta', '') if cliente else '')
+        with col2:
+            provincia = st.text_input("Prov.", value=cliente.get('provincia', '') if cliente else '', max_chars=2)
+        with col3:
+            cap = st.text_input("CAP", value=cliente.get('cap', '') if cliente else '', max_chars=5)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            telefono = st.text_input("Telefono", value=cliente.get('telefono', '') if cliente else '')
+        with col2:
+            email = st.text_input("Email", value=cliente.get('email', '') if cliente else '')
+        
+        partita_iva = st.text_input("Partita IVA", value=cliente.get('partita_iva', '') if cliente else '')
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            submitted = st.form_submit_button("💾 Salva", type="primary", use_container_width=True)
+        with col2:
+            cancelled = st.form_submit_button("❌ Annulla", use_container_width=True)
+        
+        if submitted:
+            if not ragione_sociale:
+                st.error("Ragione sociale obbligatoria")
+            else:
+                data = {
+                    'codice': codice,
+                    'ragione_sociale': ragione_sociale,
+                    'indirizzo': indirizzo,
+                    'citta': citta,
+                    'provincia': provincia.upper() if provincia else '',
+                    'cap': cap,
+                    'telefono': telefono,
+                    'email': email,
+                    'partita_iva': partita_iva,
+                }
+                if st.session_state.editing_id:
+                    data['id'] = st.session_state.editing_id
+                db.save_cliente(data)
+                st.success("Cliente salvato!")
+                st.session_state.show_form = False
+                st.session_state.editing_id = None
+                st.rerun()
+        
+        if cancelled:
+            st.session_state.show_form = False
+            st.session_state.editing_id = None
+            st.rerun()
+
+
+# ============================================
+# ORDINI
 # ============================================
 
 def render_ordini():
-    render_page_header("Lista Ordini", "Gestione ordini inseriti")
+    render_top_nav("Ordini", "Storico ordini")
     
     # Filtri
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns(2)
     with col1:
-        stato_filter = st.selectbox("Stato", ["Tutti", "Bozza", "Inviato", "Confermato", "Evaso"])
+        stato = st.selectbox("Stato", ["Tutti", "Bozza", "Inviato"], label_visibility="collapsed")
     with col2:
-        aziende = db.get_aziende()
-        azienda_options = {"": "Tutte le aziende"} | {a['id']: a['nome'] for a in aziende}
-        azienda_filter = st.selectbox("Azienda", options=list(azienda_options.keys()), format_func=lambda x: azienda_options[x])
-    with col3:
-        data_da = st.date_input("Da", value=date.today() - timedelta(days=30))
-    with col4:
-        data_a = st.date_input("A", value=date.today())
+        if st.button("➕ Nuovo Ordine", type="primary", use_container_width=True):
+            reset_ordine()
+            navigate_to('nuovo_ordine')
+            st.rerun()
     
-    # Ottieni ordini
-    stato_map = {"Tutti": None, "Bozza": "bozza", "Inviato": "inviato", "Confermato": "confermato", "Evaso": "evaso"}
-    ordini = db.get_ordini(
-        stato=stato_map.get(stato_filter),
-        azienda_id=azienda_filter if azienda_filter else None,
-        data_da=data_da.isoformat() if data_da else None,
-        data_a=data_a.isoformat() if data_a else None
-    )
+    stato_filter = None if stato == "Tutti" else stato.lower()
+    ordini = db.get_ordini(stato=stato_filter)
     
-    st.markdown(f"**{len(ordini)} ordini trovati**")
-    st.markdown("---")
+    st.markdown(f"**{len(ordini)} ordini**")
     
     if not ordini:
-        st.info("Nessun ordine trovato con i filtri selezionati")
-        return
+        st.info("Nessun ordine trovato")
+    else:
+        for o in ordini:
+            badge_class = "badge-inviato" if o['stato'] == 'inviato' else "badge-bozza"
+            
+            with st.expander(f"{o['numero']} · {o.get('cliente_ragione_sociale', 'N/D')} · {format_currency(o['totale_finale'])}"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"""
+                        **Azienda:** {o.get('azienda_nome', 'N/D')}<br>
+                        **Data:** {format_date(o['data_ordine'])}<br>
+                        **Stato:** {o['stato'].upper()}
+                    """, unsafe_allow_html=True)
+                with col2:
+                    st.markdown(f"""
+                        **Pezzi:** {o.get('totale_pezzi', 0)}<br>
+                        **Imponibile:** {format_currency(o.get('imponibile', 0))}<br>
+                        **Totale:** {format_currency(o['totale_finale'])}
+                    """, unsafe_allow_html=True)
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    if st.button("📄 PDF", key=f"pdf_{o['id']}"):
+                        pdf_bytes, filename = genera_pdf_ordine_download(o['id'])
+                        if pdf_bytes:
+                            st.download_button("⬇️ Scarica", pdf_bytes, filename, "application/pdf", key=f"dl_{o['id']}")
+                with col2:
+                    if o['stato'] == 'bozza':
+                        if st.button("✅ Invia", key=f"inv_{o['id']}"):
+                            db.update_stato_ordine(o['id'], 'inviato')
+                            st.success("Inviato!")
+                            st.rerun()
     
-    for ordine in ordini:
-        stato_emoji = {"bozza": "🟠", "inviato": "🟢", "confermato": "🔵", "evaso": "✅"}.get(ordine['stato'], "⚪")
-        
-        with st.expander(f"{stato_emoji} **{ordine['numero']}** - {ordine.get('cliente_ragione_sociale', 'N/D')} - {format_currency(ordine['totale_finale'])} - {format_date(ordine['data_ordine'])}"):
-            col1, col2, col3 = st.columns([2, 2, 1])
-            
-            with col1:
-                st.markdown(f"""
-                    **Cliente:** {ordine.get('cliente_ragione_sociale', 'N/D')}<br>
-                    **Azienda:** {ordine.get('azienda_nome', 'N/D')}<br>
-                    **Stato:** {ordine['stato'].upper()}
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                st.markdown(f"""
-                    **Totale Pezzi:** {ordine.get('totale_pezzi', 0)}<br>
-                    **Imponibile:** {format_currency(ordine.get('imponibile', 0))}<br>
-                    **Totale:** {format_currency(ordine['totale_finale'])}
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                # Azioni
-                if st.button("📄 PDF", key=f"pdf_{ordine['id']}"):
-                    pdf_bytes, filename = genera_pdf_ordine_download(ordine['id'])
-                    if pdf_bytes:
-                        st.download_button("⬇️ Scarica PDF", pdf_bytes, filename, "application/pdf", key=f"dl_{ordine['id']}")
-                
-                if ordine['stato'] == 'bozza':
-                    if st.button("✅ Invia", key=f"invia_{ordine['id']}"):
-                        db.update_stato_ordine(ordine['id'], 'inviato')
-                        st.success("Ordine inviato!")
-                        st.rerun()
-                
-                new_stato = st.selectbox("Cambia stato", ["bozza", "inviato", "confermato", "evaso"], 
-                                        index=["bozza", "inviato", "confermato", "evaso"].index(ordine['stato']),
-                                        key=f"stato_{ordine['id']}")
-                if new_stato != ordine['stato']:
-                    if st.button("Aggiorna", key=f"upd_{ordine['id']}"):
-                        db.update_stato_ordine(ordine['id'], new_stato)
-                        st.rerun()
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    render_bottom_nav()
 
 
 # ============================================
-# NUOVO ORDINE - WIZARD COMPLETO
+# NUOVO ORDINE
 # ============================================
 
 def render_nuovo_ordine():
-    render_page_header("Nuovo Ordine", "Inserimento ordine step by step")
+    render_top_nav("Nuovo Ordine", f"Step {st.session_state.ordine_step}/6")
     
-    steps = ["Fornitore", "Cliente", "Sede", "Articoli", "Dettagli", "Riepilogo"]
-    render_step_indicator(st.session_state.ordine_step, steps)
+    # Step indicator
+    steps = ["Fornitore", "Cliente", "Sede", "Articoli", "Dettagli", "Conferma"]
+    render_steps(st.session_state.ordine_step, steps)
     
-    st.markdown("---")
-    
-    # STEP 1: FORNITORE
+    # Render step corrente
     if st.session_state.ordine_step == 1:
-        st.subheader("1️⃣ Seleziona Fornitore (Azienda)")
-        
-        aziende = db.get_aziende()
-        if not aziende:
-            st.warning("⚠️ Nessuna azienda disponibile. Crea prima un'azienda.")
-            if st.button("➕ Crea Azienda"):
-                st.session_state.current_page = 'aziende'
-                st.rerun()
-            return
-        
-        cols = st.columns(3)
-        for i, azienda in enumerate(aziende):
-            with cols[i % 3]:
-                selected = st.session_state.ordine_azienda_id == azienda['id']
-                if st.button(
-                    f"🏭 {azienda['nome']}", 
-                    key=f"az_{azienda['id']}", 
-                    use_container_width=True,
-                    type="primary" if selected else "secondary"
-                ):
-                    st.session_state.ordine_azienda_id = azienda['id']
-                    st.session_state.ordine_step = 2
-                    st.rerun()
-    
-    # STEP 2: CLIENTE
+        render_step_fornitore()
     elif st.session_state.ordine_step == 2:
-        st.subheader("2️⃣ Seleziona Cliente")
-        
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            search = st.text_input("🔍 Cerca cliente", placeholder="Ragione sociale, città...")
-        with col2:
-            if st.button("⬅️ Indietro"):
-                st.session_state.ordine_step = 1
-                st.rerun()
-        
-        clienti = db.get_clienti(search=search if search else None)
-        
-        if not clienti:
-            st.warning("Nessun cliente trovato")
-            return
-        
-        for cliente in clienti[:20]:
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.markdown(f"**{cliente['ragione_sociale']}**")
-                st.caption(f"{cliente.get('indirizzo', '')} - {cliente.get('citta', '')} ({cliente.get('provincia', '')})")
-            with col2:
-                if st.button("Seleziona", key=f"cl_{cliente['id']}"):
-                    st.session_state.ordine_cliente_id = cliente['id']
-                    st.session_state.ordine_step = 3
-                    st.rerun()
-    
-    # STEP 3: SEDE
+        render_step_cliente()
     elif st.session_state.ordine_step == 3:
-        st.subheader("3️⃣ Sede di Consegna")
-        
-        cliente = db.get_cliente(st.session_state.ordine_cliente_id)
-        
-        col1, col2 = st.columns([3, 1])
-        with col2:
-            if st.button("⬅️ Indietro"):
-                st.session_state.ordine_step = 2
-                st.rerun()
-        
-        st.markdown(f"**Cliente:** {cliente['ragione_sociale']}")
-        st.markdown(f"**Sede principale:** {cliente.get('indirizzo', '')} - {cliente.get('citta', '')} ({cliente.get('provincia', '')})")
-        
-        usa_alternativa = st.checkbox("Usa sede di consegna alternativa", value=st.session_state.ordine_sede_alternativa)
-        st.session_state.ordine_sede_alternativa = usa_alternativa
-        
-        if usa_alternativa:
-            if cliente.get('sede_consegna_indirizzo'):
-                st.info(f"Sede alternativa: {cliente.get('sede_consegna_indirizzo')} - {cliente.get('sede_consegna_citta')}")
-            else:
-                st.warning("Nessuna sede alternativa configurata per questo cliente")
-        
-        if st.button("Avanti ➡️", type="primary"):
-            st.session_state.ordine_step = 4
-            st.rerun()
-    
-    # STEP 4: ARTICOLI
+        render_step_sede()
     elif st.session_state.ordine_step == 4:
         render_step_articoli()
-    
-    # STEP 5: DETTAGLI
     elif st.session_state.ordine_step == 5:
         render_step_dettagli()
-    
-    # STEP 6: RIEPILOGO
     elif st.session_state.ordine_step == 6:
-        render_step_riepilogo()
+        render_step_conferma()
     
-    # Barra inferiore con totali
+    # Barra totali (da step 4)
     if st.session_state.ordine_step >= 4 and st.session_state.ordine_righe:
         totali = calcola_totali_ordine()
-        st.markdown("---")
-        col1, col2, col3, col4 = st.columns(4)
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(f"""
+            <div style="background:#1e3a5f;color:white;padding:0.75rem 1rem;border-radius:10px;display:flex;justify-content:space-around;text-align:center;">
+                <div><div style="font-size:1rem;font-weight:700;">{totali['totale_pezzi']}</div><div style="font-size:0.65rem;opacity:0.8;">PEZZI</div></div>
+                <div><div style="font-size:1rem;font-weight:700;">{totali['totale_cartoni']:.0f}</div><div style="font-size:0.65rem;opacity:0.8;">CARTONI</div></div>
+                <div><div style="font-size:1rem;font-weight:700;">{format_currency(totali['imponibile'])}</div><div style="font-size:0.65rem;opacity:0.8;">IMPONIBILE</div></div>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    render_bottom_nav()
+
+
+def render_steps(current: int, steps: list):
+    """Indicatore steps compatto"""
+    cols = st.columns(len(steps) * 2 - 1)
+    col_idx = 0
+    
+    for i, step in enumerate(steps, 1):
+        with cols[col_idx]:
+            if i < current:
+                st.markdown(f"<div style='text-align:center;'><div style='width:28px;height:28px;border-radius:50%;background:#10b981;color:white;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;'>✓</div></div>", unsafe_allow_html=True)
+            elif i == current:
+                st.markdown(f"<div style='text-align:center;'><div style='width:28px;height:28px;border-radius:50%;background:#1e3a5f;color:white;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;'>{i}</div></div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div style='text-align:center;'><div style='width:28px;height:28px;border-radius:50%;background:#e5e7eb;color:#9ca3af;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:600;'>{i}</div></div>", unsafe_allow_html=True)
+        col_idx += 1
+        
+        if i < len(steps):
+            with cols[col_idx]:
+                color = "#1e3a5f" if i < current else "#e5e7eb"
+                st.markdown(f"<div style='height:2px;background:{color};margin-top:13px;'></div>", unsafe_allow_html=True)
+            col_idx += 1
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+
+
+def render_step_fornitore():
+    """Step 1: Selezione azienda"""
+    st.markdown("**Seleziona Azienda**")
+    
+    aziende = db.get_aziende()
+    
+    if not aziende:
+        st.warning("Nessuna azienda disponibile. Creane una prima.")
+        if st.button("➕ Crea Azienda"):
+            navigate_to('aziende')
+            st.rerun()
+        return
+    
+    for azienda in aziende:
+        num_prod = len(db.get_prodotti(azienda_id=azienda['id']))
+        selected = st.session_state.ordine_azienda_id == azienda['id']
+        
+        col1, col2 = st.columns([4, 1])
         with col1:
-            st.metric("Data Ordine", date.today().strftime('%d/%m/%Y'))
+            st.markdown(f"""
+                <div class="list-item" style="{'border-color:#3b82f6;background:#eff6ff;' if selected else ''}">
+                    <p class="list-item-title">🏭 {azienda['nome']}</p>
+                    <p class="list-item-subtitle">{num_prod} prodotti</p>
+                </div>
+            """, unsafe_allow_html=True)
         with col2:
-            st.metric("Totale Pezzi", totali['totale_pezzi'])
-        with col3:
-            st.metric("Totale Cartoni", f"{totali['totale_cartoni']:.1f}")
-        with col4:
-            st.metric("IMPONIBILE", format_currency(totali['imponibile']))
+            if st.button("Seleziona" if not selected else "✓", key=f"sel_az_{azienda['id']}", type="primary" if selected else "secondary"):
+                st.session_state.ordine_azienda_id = azienda['id']
+                st.session_state.ordine_step = 2
+                st.rerun()
+
+
+def render_step_cliente():
+    """Step 2: Selezione cliente"""
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("← Indietro"):
+            st.session_state.ordine_step = 1
+            st.rerun()
+    with col2:
+        st.markdown("**Seleziona Cliente**")
+    
+    search = st.text_input("🔍 Cerca cliente", placeholder="Ragione sociale, città...")
+    
+    clienti = db.get_clienti(search=search if search else None)
+    
+    for cliente in clienti[:15]:
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            st.markdown(f"""
+                <div class="list-item">
+                    <p class="list-item-title">{cliente['ragione_sociale']}</p>
+                    <p class="list-item-subtitle">{cliente.get('indirizzo', '')} · {cliente.get('citta', '')} ({cliente.get('provincia', '')})</p>
+                </div>
+            """, unsafe_allow_html=True)
+        with col2:
+            if st.button("→", key=f"sel_cl_{cliente['id']}"):
+                st.session_state.ordine_cliente_id = cliente['id']
+                st.session_state.ordine_step = 3
+                st.rerun()
+
+
+def render_step_sede():
+    """Step 3: Conferma sede"""
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("← Indietro"):
+            st.session_state.ordine_step = 2
+            st.rerun()
+    with col2:
+        st.markdown("**Sede di Consegna**")
+    
+    cliente = db.get_cliente(st.session_state.ordine_cliente_id)
+    
+    st.markdown(f"""
+        <div class="card">
+            <p style="font-weight:600;margin-bottom:0.5rem;">{cliente['ragione_sociale']}</p>
+            <p style="color:#6b7280;margin:0;">{cliente.get('indirizzo', 'N/D')}</p>
+            <p style="color:#6b7280;margin:0;">{cliente.get('cap', '')} {cliente.get('citta', '')} ({cliente.get('provincia', '')})</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("Avanti →", type="primary", use_container_width=True):
+        st.session_state.ordine_step = 4
+        st.rerun()
 
 
 def render_step_articoli():
     """Step 4: Selezione articoli"""
-    st.subheader("4️⃣ Seleziona Articoli")
-    
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("⬅️ Indietro"):
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("← Indietro"):
             st.session_state.ordine_step = 3
             st.rerun()
-    
-    # Filtri
-    col1, col2, col3 = st.columns([2, 2, 1])
-    with col1:
-        search = st.text_input("🔍 Cerca prodotto", placeholder="Nome o codice...")
     with col2:
-        solo_acquistati = st.checkbox("Solo prodotti già acquistati dal cliente", value=st.session_state.solo_prodotti_acquistati)
-        st.session_state.solo_prodotti_acquistati = solo_acquistati
-    with col3:
-        if st.button("Avanti ➡️", type="primary", disabled=len(st.session_state.ordine_righe) == 0):
-            st.session_state.ordine_step = 5
-            st.rerun()
+        st.markdown("**Seleziona Articoli**")
     
-    # Prodotti dell'azienda selezionata
+    # Cerca
+    search = st.text_input("🔍 Cerca prodotto", placeholder="Nome o codice...")
+    
+    # Prodotti azienda
     prodotti = db.get_prodotti(azienda_id=st.session_state.ordine_azienda_id, search=search if search else None)
     
-    # Filtra per già acquistati
-    if solo_acquistati:
-        prodotti_acquistati_ids = db.get_prodotti_acquistati_cliente(
-            st.session_state.ordine_cliente_id, 
-            st.session_state.ordine_azienda_id
-        )
-        prodotti = [p for p in prodotti if p['id'] in prodotti_acquistati_ids]
+    st.markdown(f"**{len(prodotti)} prodotti** · {len(st.session_state.ordine_righe)} nel carrello")
     
-    if not prodotti:
-        st.warning("Nessun prodotto trovato")
-        return
-    
-    st.markdown(f"**{len(prodotti)} prodotti disponibili**")
-    
-    # Lista prodotti con input quantità
-    for prodotto in prodotti:
-        # Verifica se già nel carrello
-        riga_esistente = next((r for r in st.session_state.ordine_righe if r['prodotto_id'] == prodotto['id']), None)
+    for prod in prodotti:
+        in_cart = next((r for r in st.session_state.ordine_righe if r['prodotto_id'] == prod['id']), None)
         
-        with st.container():
-            col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 1, 1])
-            
-            with col1:
-                st.markdown(f"**{prodotto['nome']}**")
-                st.caption(f"Cod: {prodotto['codice']} | {prodotto['pezzi_per_cartone']} pz/cartone | {format_currency(prodotto['prezzo_listino'])}")
-            
-            with col2:
-                cartoni = st.number_input("Cartoni", min_value=0, value=riga_esistente['quantita_cartoni'] if riga_esistente else 0, key=f"cart_{prodotto['id']}")
-            
-            with col3:
-                pezzi = st.number_input("Pezzi", min_value=0, value=riga_esistente['quantita_pezzi'] if riga_esistente else 0, key=f"pz_{prodotto['id']}")
-            
-            with col4:
-                sconto = st.number_input("Sc.%", min_value=0.0, max_value=100.0, value=riga_esistente['sconto_riga'] if riga_esistente else 0.0, key=f"sc_{prodotto['id']}")
-            
-            with col5:
-                if st.button("➕" if not riga_esistente else "✏️", key=f"add_{prodotto['id']}"):
-                    if cartoni > 0 or pezzi > 0:
-                        qta_totale = (cartoni * prodotto['pezzi_per_cartone']) + pezzi
-                        prezzo_unitario = prodotto['prezzo_listino']
-                        prezzo_scontato = prezzo_unitario * (1 - sconto/100)
-                        importo = qta_totale * prezzo_scontato
-                        
-                        nuova_riga = {
-                            'prodotto_id': prodotto['id'],
-                            'prodotto_codice': prodotto['codice'],
-                            'prodotto_nome': prodotto['nome'],
-                            'unita_misura': prodotto.get('unita_misura', 'PZ'),
-                            'pezzi_per_cartone': prodotto['pezzi_per_cartone'],
-                            'quantita_cartoni': cartoni,
-                            'quantita_pezzi': pezzi,
-                            'quantita_totale': qta_totale,
-                            'prezzo_unitario': prezzo_unitario,
-                            'sconto_riga': sconto,
-                            'prezzo_finale': prezzo_scontato,
-                            'importo_riga': importo
-                        }
-                        
-                        # Aggiorna o aggiungi
-                        if riga_esistente:
-                            st.session_state.ordine_righe = [r if r['prodotto_id'] != prodotto['id'] else nuova_riga for r in st.session_state.ordine_righe]
-                        else:
-                            st.session_state.ordine_righe.append(nuova_riga)
-                        
-                        st.rerun()
-            
-            st.markdown("---")
-    
-    # Riepilogo carrello
-    if st.session_state.ordine_righe:
-        st.subheader("🛒 Carrello")
-        for i, riga in enumerate(st.session_state.ordine_righe):
-            col1, col2, col3 = st.columns([3, 2, 1])
-            with col1:
-                st.markdown(f"**{riga['prodotto_nome']}**")
-            with col2:
-                st.markdown(f"{riga['quantita_cartoni']} cart. + {riga['quantita_pezzi']} pz = **{riga['quantita_totale']} pz** → {format_currency(riga['importo_riga'])}")
-            with col3:
-                if st.button("🗑️", key=f"del_{i}"):
-                    st.session_state.ordine_righe.pop(i)
+        st.markdown(f"""
+            <div class="product-row {'in-cart' if in_cart else ''}">
+                <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;">
+                    <div>
+                        <span class="product-name">{prod['nome']}</span>
+                        <div class="product-info">Cod: {prod['codice']} · {prod['pezzi_per_cartone']} pz/cart</div>
+                    </div>
+                    <span class="product-price">{format_currency(prod['prezzo_listino'])}</span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+        with col1:
+            cartoni = st.number_input("Cartoni", min_value=0, value=in_cart['quantita_cartoni'] if in_cart else 0, key=f"cart_{prod['id']}", label_visibility="collapsed")
+        with col2:
+            pezzi = st.number_input("Pezzi", min_value=0, value=in_cart['quantita_pezzi'] if in_cart else 0, key=f"pz_{prod['id']}", label_visibility="collapsed")
+        with col3:
+            sconto = st.number_input("Sc.%", min_value=0.0, max_value=100.0, value=in_cart['sconto_riga'] if in_cart else 0.0, key=f"sc_{prod['id']}", label_visibility="collapsed")
+        with col4:
+            if st.button("+" if not in_cart else "✓", key=f"add_{prod['id']}"):
+                if cartoni > 0 or pezzi > 0:
+                    qta_tot = (cartoni * prod['pezzi_per_cartone']) + pezzi
+                    prezzo_scontato = prod['prezzo_listino'] * (1 - sconto/100)
+                    importo = qta_tot * prezzo_scontato
+                    
+                    nuova_riga = {
+                        'prodotto_id': prod['id'],
+                        'prodotto_codice': prod['codice'],
+                        'prodotto_nome': prod['nome'],
+                        'pezzi_per_cartone': prod['pezzi_per_cartone'],
+                        'quantita_cartoni': cartoni,
+                        'quantita_pezzi': pezzi,
+                        'quantita_totale': qta_tot,
+                        'prezzo_unitario': prod['prezzo_listino'],
+                        'sconto_riga': sconto,
+                        'importo_riga': importo
+                    }
+                    
+                    # Aggiorna o aggiungi
+                    st.session_state.ordine_righe = [r for r in st.session_state.ordine_righe if r['prodotto_id'] != prod['id']]
+                    st.session_state.ordine_righe.append(nuova_riga)
                     st.rerun()
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    if st.session_state.ordine_righe:
+        if st.button("Avanti →", type="primary", use_container_width=True):
+            st.session_state.ordine_step = 5
+            st.rerun()
 
 
 def render_step_dettagli():
     """Step 5: Dettagli ordine"""
-    st.subheader("5️⃣ Dettagli Ordine")
-    
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("⬅️ Indietro"):
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("← Indietro"):
             st.session_state.ordine_step = 4
             st.rerun()
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        pagamento = st.selectbox("Pagamento", ["Bonifico 30gg", "Bonifico 60gg", "Bonifico 90gg", "Rimessa diretta", "Contanti"], 
-                                index=0, key="det_pagamento")
-        consegna = st.selectbox("Consegna", ["Franco destino", "Franco partenza", "Ritiro"], key="det_consegna")
-        resa = st.text_input("Resa", value="", key="det_resa")
-    
     with col2:
-        spedizione = st.text_input("Spedizione", value="", key="det_spedizione")
-        banca = st.text_input("Banca", value="", key="det_banca")
-        sconto_chiusura = st.number_input("Sconto Chiusura %", min_value=0.0, max_value=50.0, value=0.0, key="det_sconto")
+        st.markdown("**Dettagli Ordine**")
     
-    note = st.text_area("Note Ordine", value="", key="det_note")
+    pagamento = st.selectbox("Pagamento", ["Bonifico 30gg", "Bonifico 60gg", "Rimessa diretta", "Contanti"])
+    consegna = st.selectbox("Consegna", ["Franco destino", "Franco partenza", "Ritiro"])
+    sconto_chiusura = st.number_input("Sconto Chiusura %", min_value=0.0, max_value=50.0, value=0.0)
+    note = st.text_area("Note ordine")
     
-    # Salva dettagli
     st.session_state.ordine_dettagli = {
         'pagamento': pagamento,
         'consegna_tipo': consegna,
-        'resa': resa,
-        'spedizione': spedizione,
-        'banca': banca,
         'sconto_chiusura': sconto_chiusura,
         'note': note
     }
     
-    if st.button("Avanti ➡️", type="primary"):
+    if st.button("Avanti →", type="primary", use_container_width=True):
         st.session_state.ordine_step = 6
         st.rerun()
 
 
-def render_step_riepilogo():
+def render_step_conferma():
     """Step 6: Riepilogo e conferma"""
-    st.subheader("6️⃣ Riepilogo Ordine")
-    
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("⬅️ Indietro"):
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("← Indietro"):
             st.session_state.ordine_step = 5
             st.rerun()
+    with col2:
+        st.markdown("**Riepilogo Ordine**")
     
     azienda = db.get_azienda(st.session_state.ordine_azienda_id)
     cliente = db.get_cliente(st.session_state.ordine_cliente_id)
     totali = calcola_totali_ordine()
     
-    # Info generali
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f"""
-            **FORNITORE**<br>
-            {azienda['nome']}<br>
-            {azienda.get('ragione_sociale', '')}
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-            **CLIENTE**<br>
-            {cliente['ragione_sociale']}<br>
-            {cliente.get('indirizzo', '')} - {cliente.get('citta', '')} ({cliente.get('provincia', '')})
-        """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Tabella articoli
-    st.markdown("**ARTICOLI**")
-    df_righe = pd.DataFrame(st.session_state.ordine_righe)
-    if not df_righe.empty:
-        df_display = df_righe[['prodotto_codice', 'prodotto_nome', 'quantita_cartoni', 'quantita_pezzi', 'quantita_totale', 'prezzo_unitario', 'sconto_riga', 'importo_riga']].copy()
-        df_display.columns = ['Codice', 'Prodotto', 'Cartoni', 'Pezzi', 'Tot.Pz', 'Pr.Unit.', 'Sc.%', 'Importo']
-        df_display['Pr.Unit.'] = df_display['Pr.Unit.'].apply(format_currency)
-        df_display['Importo'] = df_display['Importo'].apply(format_currency)
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
-    
-    st.markdown("---")
-    
-    # Totali
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Totale Pezzi", totali['totale_pezzi'])
-    with col2:
-        st.metric("Imponibile", format_currency(totali['imponibile']))
-    with col3:
-        if totali['sconto_chiusura'] > 0:
-            st.metric("Sconto Chiusura", f"{totali['sconto_chiusura']}%")
-    
-    st.markdown(f"### TOTALE ORDINE: {format_currency(totali['totale_finale'])}")
-    
-    # Condizioni
-    det = st.session_state.ordine_dettagli
     st.markdown(f"""
-        **Condizioni:** {det.get('pagamento', '')} | {det.get('consegna_tipo', '')} | {det.get('resa', '')}
-    """)
+        <div class="card">
+            <p><strong>Fornitore:</strong> {azienda['nome']}</p>
+            <p><strong>Cliente:</strong> {cliente['ragione_sociale']}</p>
+            <p><strong>Articoli:</strong> {len(st.session_state.ordine_righe)}</p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    if det.get('note'):
-        st.markdown(f"**Note:** {det.get('note')}")
+    # Articoli
+    for riga in st.session_state.ordine_righe:
+        st.markdown(f"- {riga['prodotto_nome']}: {riga['quantita_cartoni']} cart. + {riga['quantita_pezzi']} pz = **{format_currency(riga['importo_riga'])}**")
     
-    st.markdown("---")
+    st.markdown(f"""
+        <div class="card" style="background:#f0fdf4;border-color:#10b981;">
+            <p style="font-size:0.9rem;"><strong>Totale Pezzi:</strong> {totali['totale_pezzi']}</p>
+            <p style="font-size:0.9rem;"><strong>Imponibile:</strong> {format_currency(totali['imponibile'])}</p>
+            {'<p style="font-size:0.9rem;"><strong>Sconto:</strong> ' + str(totali["sconto_chiusura"]) + '%</p>' if totali['sconto_chiusura'] > 0 else ''}
+            <p style="font-size:1.25rem;font-weight:700;color:#1e3a5f;margin-top:0.5rem;">TOTALE: {format_currency(totali['totale_finale'])}</p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # Azioni
-    col1, col2, col3 = st.columns(3)
-    
+    col1, col2 = st.columns(2)
     with col1:
         if st.button("💾 Salva Bozza", use_container_width=True):
             salva_ordine('bozza')
-    
     with col2:
         if st.button("📤 INVIA ORDINE", type="primary", use_container_width=True):
             salva_ordine('inviato')
-    
-    with col3:
-        if st.button("❌ Annulla", use_container_width=True):
-            reset_ordine()
-            st.session_state.current_page = 'dashboard'
-            st.rerun()
 
 
 def salva_ordine(stato: str):
-    """Salva l'ordine nel database"""
-    azienda = db.get_azienda(st.session_state.ordine_azienda_id)
-    cliente = db.get_cliente(st.session_state.ordine_cliente_id)
+    """Salva l'ordine"""
     totali = calcola_totali_ordine()
     det = st.session_state.ordine_dettagli
     
-    # Prepara testata
     testata = {
         'numero': db.get_prossimo_numero_ordine(),
         'data_ordine': date.today().isoformat(),
@@ -847,9 +1580,6 @@ def salva_ordine(stato: str):
         'cliente_id': st.session_state.ordine_cliente_id,
         'pagamento': det.get('pagamento'),
         'consegna_tipo': det.get('consegna_tipo'),
-        'resa': det.get('resa'),
-        'spedizione': det.get('spedizione'),
-        'banca': det.get('banca'),
         'totale_pezzi': totali['totale_pezzi'],
         'totale_cartoni': totali['totale_cartoni'],
         'imponibile': totali['imponibile'],
@@ -859,387 +1589,14 @@ def salva_ordine(stato: str):
         'note': det.get('note'),
     }
     
-    # Sede consegna
-    if st.session_state.ordine_sede_alternativa and cliente.get('sede_consegna_indirizzo'):
-        testata['consegna_indirizzo'] = cliente.get('sede_consegna_indirizzo')
-        testata['consegna_citta'] = cliente.get('sede_consegna_citta')
-        testata['consegna_provincia'] = cliente.get('sede_consegna_provincia')
-        testata['consegna_cap'] = cliente.get('sede_consegna_cap')
+    db.save_ordine(testata, st.session_state.ordine_righe)
     
-    # Salva
-    ordine_id = db.save_ordine(testata, st.session_state.ordine_righe)
+    msg = "✅ Ordine INVIATO!" if stato == 'inviato' else "💾 Bozza salvata"
+    st.success(msg)
     
-    if stato == 'inviato':
-        st.success(f"✅ Ordine {testata['numero']} INVIATO con successo!")
-    else:
-        st.success(f"💾 Ordine {testata['numero']} salvato come BOZZA")
-    
-    # Reset e vai a lista
     reset_ordine()
-    st.session_state.current_page = 'ordini'
+    navigate_to('ordini')
     st.rerun()
-
-
-# ============================================
-# CLIENTI
-# ============================================
-
-def render_clienti():
-    render_page_header("Clienti", "Anagrafica clienti")
-    
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        search = st.text_input("🔍 Cerca", placeholder="Ragione sociale, città...")
-    with col2:
-        if st.button("➕ Nuovo Cliente", type="primary"):
-            st.session_state.show_form = True
-            st.session_state.editing_id = None
-    
-    # Form nuovo/modifica
-    if st.session_state.show_form:
-        render_form_cliente()
-        return
-    
-    clienti = db.get_clienti(search=search if search else None)
-    
-    st.markdown(f"**{len(clienti)} clienti**")
-    
-    for cliente in clienti:
-        with st.expander(f"🏢 {cliente['ragione_sociale']} - {cliente.get('citta', '')} ({cliente.get('provincia', '')})"):
-            col1, col2, col3 = st.columns([2, 2, 1])
-            
-            with col1:
-                st.markdown(f"""
-                    **Codice:** {cliente.get('codice', '-')}<br>
-                    **Indirizzo:** {cliente.get('indirizzo', '-')}<br>
-                    **Città:** {cliente.get('citta', '-')} ({cliente.get('provincia', '-')}) {cliente.get('cap', '')}
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                st.markdown(f"""
-                    **Telefono:** {cliente.get('telefono', '-')}<br>
-                    **Email:** {cliente.get('email', '-')}<br>
-                    **P.IVA:** {cliente.get('partita_iva', '-')}
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                if st.button("✏️ Modifica", key=f"edit_cl_{cliente['id']}"):
-                    st.session_state.show_form = True
-                    st.session_state.editing_id = cliente['id']
-                    st.rerun()
-                
-                if cliente.get('indirizzo'):
-                    maps_url = f"https://www.google.com/maps/search/?api=1&query={cliente['indirizzo']}, {cliente.get('citta', '')}"
-                    st.link_button("🗺️ Maps", maps_url)
-
-
-def render_form_cliente():
-    """Form per nuovo/modifica cliente"""
-    cliente = None
-    if st.session_state.editing_id:
-        cliente = db.get_cliente(st.session_state.editing_id)
-        st.subheader("✏️ Modifica Cliente")
-    else:
-        st.subheader("➕ Nuovo Cliente")
-    
-    with st.form("form_cliente"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            codice = st.text_input("Codice", value=cliente.get('codice', '') if cliente else '')
-            ragione_sociale = st.text_input("Ragione Sociale *", value=cliente.get('ragione_sociale', '') if cliente else '')
-            indirizzo = st.text_input("Indirizzo", value=cliente.get('indirizzo', '') if cliente else '')
-            citta = st.text_input("Città", value=cliente.get('citta', '') if cliente else '')
-            provincia = st.text_input("Provincia", value=cliente.get('provincia', '') if cliente else '', max_chars=2)
-            cap = st.text_input("CAP", value=cliente.get('cap', '') if cliente else '', max_chars=5)
-        
-        with col2:
-            telefono = st.text_input("Telefono", value=cliente.get('telefono', '') if cliente else '')
-            cellulare = st.text_input("Cellulare", value=cliente.get('cellulare', '') if cliente else '')
-            email = st.text_input("Email", value=cliente.get('email', '') if cliente else '')
-            partita_iva = st.text_input("Partita IVA", value=cliente.get('partita_iva', '') if cliente else '')
-            codice_fiscale = st.text_input("Codice Fiscale", value=cliente.get('codice_fiscale', '') if cliente else '')
-            categoria = st.selectbox("Categoria", ["A", "B", "C"], index=["A", "B", "C"].index(cliente.get('categoria', 'C')) if cliente else 2)
-        
-        note = st.text_area("Note", value=cliente.get('note', '') if cliente else '')
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("💾 Salva", type="primary"):
-                if not ragione_sociale:
-                    st.error("La ragione sociale è obbligatoria")
-                else:
-                    data = {
-                        'codice': codice,
-                        'ragione_sociale': ragione_sociale,
-                        'indirizzo': indirizzo,
-                        'citta': citta,
-                        'provincia': provincia.upper(),
-                        'cap': cap,
-                        'telefono': telefono,
-                        'cellulare': cellulare,
-                        'email': email,
-                        'partita_iva': partita_iva,
-                        'codice_fiscale': codice_fiscale,
-                        'categoria': categoria,
-                        'note': note
-                    }
-                    if st.session_state.editing_id:
-                        data['id'] = st.session_state.editing_id
-                    db.save_cliente(data)
-                    st.success("Cliente salvato!")
-                    st.session_state.show_form = False
-                    st.session_state.editing_id = None
-                    st.rerun()
-        
-        with col2:
-            if st.form_submit_button("❌ Annulla"):
-                st.session_state.show_form = False
-                st.session_state.editing_id = None
-                st.rerun()
-
-
-# ============================================
-# AZIENDE
-# ============================================
-
-def render_aziende():
-    render_page_header("Aziende", "Gestione fornitori/mandanti")
-    
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("➕ Nuova Azienda", type="primary"):
-            st.session_state.show_form = True
-            st.session_state.editing_id = None
-    
-    if st.session_state.show_form:
-        render_form_azienda()
-        return
-    
-    aziende = db.get_aziende()
-    
-    if not aziende:
-        st.info("Nessuna azienda. Clicca 'Nuova Azienda' per iniziare.")
-        return
-    
-    cols = st.columns(3)
-    for i, azienda in enumerate(aziende):
-        with cols[i % 3]:
-            num_prodotti = len(db.get_prodotti(azienda_id=azienda['id']))
-            
-            st.markdown(f"""
-                <div class="card">
-                    <h3 style="margin:0 0 0.5rem 0;">{azienda['nome']}</h3>
-                    <p style="color:#6b7280;margin:0;">{azienda.get('ragione_sociale', '') or 'N/D'}</p>
-                    <p style="margin:0.5rem 0;">📦 {num_prodotti} prodotti</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✏️", key=f"edit_az_{azienda['id']}"):
-                    st.session_state.show_form = True
-                    st.session_state.editing_id = azienda['id']
-                    st.rerun()
-            with col2:
-                if st.button("🗑️", key=f"del_az_{azienda['id']}"):
-                    if st.session_state.get(f'confirm_del_{azienda["id"]}'):
-                        db.delete_azienda(azienda['id'])
-                        st.rerun()
-                    else:
-                        st.session_state[f'confirm_del_{azienda["id"]}'] = True
-                        st.warning("Clicca di nuovo per confermare")
-
-
-def render_form_azienda():
-    """Form per nuova/modifica azienda"""
-    azienda = None
-    if st.session_state.editing_id:
-        azienda = db.get_azienda(st.session_state.editing_id)
-        st.subheader("✏️ Modifica Azienda")
-    else:
-        st.subheader("➕ Nuova Azienda")
-    
-    with st.form("form_azienda"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            nome = st.text_input("Nome *", value=azienda.get('nome', '') if azienda else '')
-            ragione_sociale = st.text_input("Ragione Sociale", value=azienda.get('ragione_sociale', '') if azienda else '')
-            indirizzo = st.text_input("Indirizzo", value=azienda.get('indirizzo', '') if azienda else '')
-            citta = st.text_input("Città", value=azienda.get('citta', '') if azienda else '')
-            provincia = st.text_input("Provincia", value=azienda.get('provincia', '') if azienda else '', max_chars=2)
-        
-        with col2:
-            telefono = st.text_input("Telefono", value=azienda.get('telefono', '') if azienda else '')
-            email = st.text_input("Email", value=azienda.get('email', '') if azienda else '')
-            partita_iva = st.text_input("Partita IVA", value=azienda.get('partita_iva', '') if azienda else '')
-            iban = st.text_input("IBAN", value=azienda.get('iban', '') if azienda else '')
-            banca = st.text_input("Banca", value=azienda.get('banca', '') if azienda else '')
-        
-        note = st.text_area("Note", value=azienda.get('note', '') if azienda else '')
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("💾 Salva", type="primary"):
-                if not nome:
-                    st.error("Il nome è obbligatorio")
-                else:
-                    data = {
-                        'nome': nome,
-                        'ragione_sociale': ragione_sociale,
-                        'indirizzo': indirizzo,
-                        'citta': citta,
-                        'provincia': provincia.upper(),
-                        'telefono': telefono,
-                        'email': email,
-                        'partita_iva': partita_iva,
-                        'iban': iban,
-                        'banca': banca,
-                        'note': note
-                    }
-                    if st.session_state.editing_id:
-                        data['id'] = st.session_state.editing_id
-                    db.save_azienda(data)
-                    st.success("Azienda salvata!")
-                    st.session_state.show_form = False
-                    st.session_state.editing_id = None
-                    st.rerun()
-        
-        with col2:
-            if st.form_submit_button("❌ Annulla"):
-                st.session_state.show_form = False
-                st.session_state.editing_id = None
-                st.rerun()
-
-
-# ============================================
-# PRODOTTI
-# ============================================
-
-def render_prodotti():
-    render_page_header("Prodotti", "Catalogo prodotti per azienda")
-    
-    col1, col2, col3 = st.columns([2, 2, 1])
-    with col1:
-        aziende = db.get_aziende()
-        azienda_options = {"": "Tutte"} | {a['id']: a['nome'] for a in aziende}
-        filter_azienda = st.selectbox("Filtra per azienda", options=list(azienda_options.keys()), format_func=lambda x: azienda_options[x])
-    with col2:
-        search = st.text_input("🔍 Cerca", placeholder="Nome o codice...")
-    with col3:
-        if st.button("➕ Nuovo Prodotto", type="primary", disabled=len(aziende) == 0):
-            st.session_state.show_form = True
-            st.session_state.editing_id = None
-    
-    if len(aziende) == 0:
-        st.warning("⚠️ Crea prima almeno un'azienda")
-        return
-    
-    if st.session_state.show_form:
-        render_form_prodotto()
-        return
-    
-    prodotti = db.get_prodotti(
-        azienda_id=filter_azienda if filter_azienda else None,
-        search=search if search else None,
-        solo_disponibili=False
-    )
-    
-    st.markdown(f"**{len(prodotti)} prodotti**")
-    
-    if not prodotti:
-        st.info("Nessun prodotto trovato")
-        return
-    
-    # Tabella prodotti
-    df = pd.DataFrame(prodotti)
-    df_display = df[['codice', 'nome', 'azienda_nome', 'prezzo_listino', 'pezzi_per_cartone', 'disponibile']].copy()
-    df_display.columns = ['Codice', 'Nome', 'Azienda', 'Prezzo', 'Pz/Cart', 'Disp.']
-    df_display['Prezzo'] = df_display['Prezzo'].apply(format_currency)
-    df_display['Disp.'] = df_display['Disp.'].apply(lambda x: '✅' if x else '❌')
-    
-    st.dataframe(df_display, use_container_width=True, hide_index=True)
-    
-    # Azioni su prodotti
-    st.markdown("---")
-    st.subheader("Gestione Prodotti")
-    
-    for prodotto in prodotti[:10]:
-        col1, col2, col3 = st.columns([4, 1, 1])
-        with col1:
-            st.write(f"**{prodotto['codice']}** - {prodotto['nome']}")
-        with col2:
-            if st.button("✏️", key=f"edit_pr_{prodotto['id']}"):
-                st.session_state.show_form = True
-                st.session_state.editing_id = prodotto['id']
-                st.rerun()
-        with col3:
-            if st.button("🗑️", key=f"del_pr_{prodotto['id']}"):
-                db.delete_prodotto(prodotto['id'])
-                st.rerun()
-
-
-def render_form_prodotto():
-    """Form per nuovo/modifica prodotto"""
-    prodotto = None
-    if st.session_state.editing_id:
-        prodotto = db.get_prodotto(st.session_state.editing_id)
-        st.subheader("✏️ Modifica Prodotto")
-    else:
-        st.subheader("➕ Nuovo Prodotto")
-    
-    aziende = db.get_aziende()
-    
-    with st.form("form_prodotto"):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            azienda_id = st.selectbox(
-                "Azienda *",
-                options=[a['id'] for a in aziende],
-                format_func=lambda x: next(a['nome'] for a in aziende if a['id'] == x),
-                index=next((i for i, a in enumerate(aziende) if a['id'] == prodotto.get('azienda_id')), 0) if prodotto else 0
-            )
-            codice = st.text_input("Codice *", value=prodotto.get('codice', '') if prodotto else '')
-            nome = st.text_input("Nome *", value=prodotto.get('nome', '') if prodotto else '')
-            descrizione = st.text_input("Descrizione", value=prodotto.get('descrizione', '') if prodotto else '')
-        
-        with col2:
-            prezzo = st.number_input("Prezzo Listino €", min_value=0.0, value=float(prodotto.get('prezzo_listino', 0)) if prodotto else 0.0, step=0.01)
-            pezzi_cartone = st.number_input("Pezzi per Cartone", min_value=1, value=int(prodotto.get('pezzi_per_cartone', 1)) if prodotto else 1)
-            unita = st.selectbox("Unità di Misura", ["PZ", "KG", "LT", "CF"], index=["PZ", "KG", "LT", "CF"].index(prodotto.get('unita_misura', 'PZ')) if prodotto else 0)
-            disponibile = st.checkbox("Disponibile", value=prodotto.get('disponibile', True) if prodotto else True)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("💾 Salva", type="primary"):
-                if not codice or not nome:
-                    st.error("Codice e nome sono obbligatori")
-                else:
-                    data = {
-                        'azienda_id': azienda_id,
-                        'codice': codice,
-                        'nome': nome,
-                        'descrizione': descrizione,
-                        'prezzo_listino': prezzo,
-                        'pezzi_per_cartone': pezzi_cartone,
-                        'unita_misura': unita,
-                        'disponibile': 1 if disponibile else 0
-                    }
-                    if st.session_state.editing_id:
-                        data['id'] = st.session_state.editing_id
-                    db.save_prodotto(data)
-                    st.success("Prodotto salvato!")
-                    st.session_state.show_form = False
-                    st.session_state.editing_id = None
-                    st.rerun()
-        
-        with col2:
-            if st.form_submit_button("❌ Annulla"):
-                st.session_state.show_form = False
-                st.session_state.editing_id = None
-                st.rerun()
 
 
 # ============================================
@@ -1247,256 +1604,83 @@ def render_form_prodotto():
 # ============================================
 
 def render_promemoria():
-    render_page_header("Promemoria", "Gestione scadenze e attività")
-    
-    col1, col2 = st.columns([3, 1])
-    with col2:
-        if st.button("➕ Nuovo Promemoria", type="primary"):
-            st.session_state.show_form = True
-            st.session_state.editing_id = None
+    render_top_nav("Promemoria", "Scadenze")
     
     if st.session_state.show_form:
         render_form_promemoria()
         return
     
-    tab1, tab2 = st.tabs(["📋 Attivi", "✅ Completati"])
+    if st.button("➕ Nuovo Promemoria", type="primary"):
+        st.session_state.show_form = True
+        st.rerun()
     
-    with tab1:
-        promemoria = db.get_promemoria(solo_attivi=True)
-        oggi = date.today()
-        
-        if not promemoria:
-            st.success("✨ Nessun promemoria attivo!")
-        else:
-            for p in promemoria:
-                data_scad = datetime.strptime(p['data_scadenza'].split('T')[0] if 'T' in p['data_scadenza'] else p['data_scadenza'], '%Y-%m-%d').date()
-                
-                if data_scad < oggi:
-                    badge = "🔴 SCADUTO"
-                    bg_color = "#fee2e2"
-                elif data_scad == oggi:
-                    badge = "🟠 OGGI"
-                    bg_color = "#fef3c7"
-                else:
-                    badge = f"🟢 {format_date(p['data_scadenza'])}"
-                    bg_color = "#d1fae5"
-                
-                col1, col2, col3 = st.columns([3, 1, 1])
-                with col1:
-                    st.markdown(f"""
-                        <div style="background:{bg_color};padding:1rem;border-radius:8px;margin-bottom:0.5rem;">
-                            <strong>{p['titolo']}</strong> <span>{badge}</span><br>
-                            <span style="color:#6b7280;">{p.get('cliente_nome', '')}</span>
-                        </div>
-                    """, unsafe_allow_html=True)
-                with col2:
-                    if st.button("✅", key=f"compl_{p['id']}"):
-                        db.completa_promemoria(p['id'])
-                        st.rerun()
-                with col3:
-                    if st.button("🗑️", key=f"del_p_{p['id']}"):
-                        db.delete_promemoria(p['id'])
-                        st.rerun()
+    promemoria = db.get_promemoria(solo_attivi=True)
+    oggi = date.today()
     
-    with tab2:
-        completati = db.get_promemoria(solo_attivi=False)
-        completati = [p for p in completati if p.get('completato')]
-        
-        if not completati:
-            st.info("Nessun promemoria completato")
-        else:
-            for p in completati[:20]:
-                st.markdown(f"✅ ~~{p['titolo']}~~ - {format_date(p.get('data_completamento', ''))}")
+    if not promemoria:
+        st.success("✨ Nessun promemoria attivo!")
+    else:
+        for p in promemoria:
+            try:
+                data_scad = datetime.strptime(p['data_scadenza'].split('T')[0], '%Y-%m-%d').date()
+            except:
+                data_scad = oggi
+            
+            if data_scad < oggi:
+                badge = "🔴 SCADUTO"
+                bg = "#fee2e2"
+            elif data_scad == oggi:
+                badge = "🟠 OGGI"
+                bg = "#fef3c7"
+            else:
+                badge = f"📅 {format_date(p['data_scadenza'])}"
+                bg = "#f3f4f6"
+            
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.markdown(f"""
+                    <div class="list-item" style="background:{bg};">
+                        <p class="list-item-title">{p['titolo']}</p>
+                        <p class="list-item-subtitle">{p.get('cliente_nome', '')} · {badge}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                if st.button("✅", key=f"cp_{p['id']}"):
+                    db.completa_promemoria(p['id'])
+                    st.rerun()
+    
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    render_bottom_nav()
 
 
 def render_form_promemoria():
-    """Form per nuovo promemoria"""
-    st.subheader("➕ Nuovo Promemoria")
+    """Form nuovo promemoria"""
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button("← Indietro"):
+            st.session_state.show_form = False
+            st.rerun()
+    with col2:
+        st.markdown("**Nuovo Promemoria**")
     
-    clienti = db.get_clienti()
-    
-    with st.form("form_promemoria"):
+    with st.form("form_prom"):
         titolo = st.text_input("Titolo *")
+        data_scadenza = st.date_input("Scadenza", value=date.today() + timedelta(days=1))
+        priorita = st.selectbox("Priorità", ["alta", "media", "bassa"], index=1)
+        descrizione = st.text_area("Note")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            tipo = st.selectbox("Tipo", ["chiamata", "preventivo", "sollecito", "ricontatto", "scadenza", "generico"])
-            data_scadenza = st.date_input("Data Scadenza", value=date.today() + timedelta(days=1))
-        with col2:
-            priorita = st.selectbox("Priorità", ["alta", "media", "bassa"], index=1)
-            cliente_options = {"": "Nessuno"} | {c['id']: c['ragione_sociale'] for c in clienti}
-            cliente_id = st.selectbox("Cliente", options=list(cliente_options.keys()), format_func=lambda x: cliente_options[x])
-        
-        descrizione = st.text_area("Descrizione")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("💾 Salva", type="primary"):
-                if not titolo:
-                    st.error("Il titolo è obbligatorio")
-                else:
-                    data = {
-                        'titolo': titolo,
-                        'descrizione': descrizione,
-                        'cliente_id': cliente_id if cliente_id else None,
-                        'tipo': tipo,
-                        'data_scadenza': data_scadenza.isoformat(),
-                        'priorita': priorita,
-                        'completato': 0
-                    }
-                    db.save_promemoria(data)
-                    st.success("Promemoria creato!")
-                    st.session_state.show_form = False
-                    st.rerun()
-        
-        with col2:
-            if st.form_submit_button("❌ Annulla"):
+        if st.form_submit_button("💾 Salva", type="primary", use_container_width=True):
+            if titolo:
+                db.save_promemoria({
+                    'titolo': titolo,
+                    'data_scadenza': data_scadenza.isoformat(),
+                    'priorita': priorita,
+                    'descrizione': descrizione,
+                    'completato': 0
+                })
+                st.success("Salvato!")
                 st.session_state.show_form = False
                 st.rerun()
-
-
-# ============================================
-# CALENDARIO
-# ============================================
-
-def render_calendario():
-    render_page_header("Calendario", "Pianificazione visite")
-    st.info("🚧 Funzionalità calendario in sviluppo...")
-    
-    # Vista semplice per ora
-    st.subheader("📅 Visite Pianificate")
-    visite = db.get_visite_pianificate()
-    
-    if not visite:
-        st.info("Nessuna visita pianificata")
-    else:
-        for v in visite:
-            st.markdown(f"""
-                <div class="ordine-row">
-                    <strong>{format_date(v['data_pianificata'])}</strong><br>
-                    {v.get('cliente_nome', 'N/D')} - {v.get('cliente_citta', '')}
-                </div>
-            """, unsafe_allow_html=True)
-
-
-# ============================================
-# REPORT
-# ============================================
-
-def render_report():
-    render_page_header("Report", "Analisi e statistiche")
-    
-    anno = st.selectbox("Anno", options=[2024, 2025, 2026], index=1)
-    
-    tab1, tab2, tab3 = st.tabs(["🏭 Per Azienda", "👥 Per Cliente", "📦 Top Prodotti"])
-    
-    with tab1:
-        st.subheader("Fatturato per Azienda")
-        dati = db.get_fatturato_per_azienda(anno)
-        
-        if dati and any(d['fatturato'] for d in dati):
-            df = pd.DataFrame(dati)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                fig = px.pie(df[df['fatturato'] > 0], values='fatturato', names='nome', title='Distribuzione Fatturato')
-                st.plotly_chart(fig, use_container_width=True)
-            
-            with col2:
-                df_display = df[['nome', 'num_ordini', 'fatturato']].copy()
-                df_display.columns = ['Azienda', 'N. Ordini', 'Fatturato']
-                df_display['Fatturato'] = df_display['Fatturato'].apply(format_currency)
-                st.dataframe(df_display, use_container_width=True, hide_index=True)
-            
-            totale = sum(d['fatturato'] or 0 for d in dati)
-            st.metric("TOTALE AGENZIA", format_currency(totale))
-        else:
-            st.info("Nessun dato disponibile")
-    
-    with tab2:
-        st.subheader("Top Clienti")
-        dati = db.get_fatturato_per_cliente(anno, limit=20)
-        
-        if dati:
-            df = pd.DataFrame(dati)
-            df_display = df[['ragione_sociale', 'citta', 'num_ordini', 'fatturato']].copy()
-            df_display.columns = ['Cliente', 'Città', 'N. Ordini', 'Fatturato']
-            df_display['Fatturato'] = df_display['Fatturato'].apply(format_currency)
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
-        else:
-            st.info("Nessun dato disponibile")
-    
-    with tab3:
-        st.subheader("Top Prodotti")
-        dati = db.get_top_prodotti(anno, limit=20)
-        
-        if dati:
-            df = pd.DataFrame(dati)
-            df_display = df[['codice', 'nome', 'azienda_nome', 'quantita_venduta', 'fatturato']].copy()
-            df_display.columns = ['Codice', 'Prodotto', 'Azienda', 'Qtà Venduta', 'Fatturato']
-            df_display['Fatturato'] = df_display['Fatturato'].apply(format_currency)
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
-        else:
-            st.info("Nessun dato disponibile")
-
-
-# ============================================
-# IMPOSTAZIONI
-# ============================================
-
-def render_impostazioni():
-    render_page_header("Impostazioni", "Configurazione agente e sistema")
-    
-    tab1, tab2 = st.tabs(["👤 Dati Agente", "⚙️ Sistema"])
-    
-    with tab1:
-        st.subheader("Dati Agente")
-        agente = db.get_agente() or {}
-        
-        with st.form("form_agente"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                nome = st.text_input("Nome", value=agente.get('nome', ''))
-                cognome = st.text_input("Cognome", value=agente.get('cognome', ''))
-                ragione_sociale = st.text_input("Ragione Sociale", value=agente.get('ragione_sociale', ''))
-                indirizzo = st.text_input("Indirizzo", value=agente.get('indirizzo', ''))
-                citta = st.text_input("Città", value=agente.get('citta', ''))
-            
-            with col2:
-                telefono = st.text_input("Telefono", value=agente.get('telefono', ''))
-                cellulare = st.text_input("Cellulare", value=agente.get('cellulare', ''))
-                email = st.text_input("Email", value=agente.get('email', ''))
-                partita_iva = st.text_input("Partita IVA", value=agente.get('partita_iva', ''))
-                codice_enasarco = st.text_input("Codice ENASARCO", value=agente.get('codice_enasarco', ''))
-            
-            if st.form_submit_button("💾 Salva", type="primary"):
-                data = {
-                    'nome': nome,
-                    'cognome': cognome,
-                    'ragione_sociale': ragione_sociale,
-                    'indirizzo': indirizzo,
-                    'citta': citta,
-                    'telefono': telefono,
-                    'cellulare': cellulare,
-                    'email': email,
-                    'partita_iva': partita_iva,
-                    'codice_enasarco': codice_enasarco
-                }
-                db.save_agente(data)
-                st.success("Dati agente salvati!")
-    
-    with tab2:
-        st.subheader("Informazioni Sistema")
-        st.info("Versione: 1.0.0 - Portale Agente Professionale")
-        
-        stats = db.get_statistiche_dashboard()
-        st.markdown(f"""
-            - **Aziende:** {stats.get('totale_aziende', 0)}
-            - **Clienti:** {stats.get('totale_clienti', 0)}
-            - **Prodotti:** {stats.get('totale_prodotti', 0)}
-            - **Ordini totali:** {stats.get('ordini_anno', 0)}
-        """)
 
 
 # ============================================
@@ -1504,40 +1688,26 @@ def render_impostazioni():
 # ============================================
 
 def main():
-    # Inizializza database
     db.init_db()
     
-    # Login check
     if not st.session_state.authenticated:
         render_login()
         return
     
-    # Sidebar
-    render_sidebar()
-    
-    # Routing pagine
     page = st.session_state.current_page
     
     if page == 'dashboard':
         render_dashboard()
+    elif page == 'aziende':
+        render_aziende()
+    elif page == 'clienti':
+        render_clienti()
     elif page == 'ordini':
         render_ordini()
     elif page == 'nuovo_ordine':
         render_nuovo_ordine()
-    elif page == 'clienti':
-        render_clienti()
-    elif page == 'aziende':
-        render_aziende()
-    elif page == 'prodotti':
-        render_prodotti()
-    elif page == 'calendario':
-        render_calendario()
     elif page == 'promemoria':
         render_promemoria()
-    elif page == 'report':
-        render_report()
-    elif page == 'impostazioni':
-        render_impostazioni()
     else:
         render_dashboard()
 
