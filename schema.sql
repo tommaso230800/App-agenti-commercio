@@ -22,9 +22,26 @@ CREATE TABLE IF NOT EXISTS aziende (
     banca TEXT,
     note TEXT,
     logo_path TEXT,
+    -- Logo embedded (per Streamlit Cloud: salviamo base64 nel DB)
+    logo_b64 TEXT,
+    logo_mime TEXT,
     attivo INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabella APPUNTAMENTI (Calendario)
+CREATE TABLE IF NOT EXISTS appuntamenti (
+    id TEXT PRIMARY KEY,
+    titolo TEXT NOT NULL,
+    data DATE NOT NULL,
+    ora TEXT,
+    cliente_id TEXT,
+    luogo TEXT,
+    note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (cliente_id) REFERENCES clienti(id) ON DELETE SET NULL
 );
 
 -- Tabella CLIENTI (Committenti/Acquirenti)

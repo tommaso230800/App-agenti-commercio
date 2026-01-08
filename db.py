@@ -31,6 +31,39 @@ def init_db():
             schema = f.read()
         conn.executescript(schema)
 
+        # --- MIGRAZIONI LEGACY (DB già esistenti su Streamlit Cloud) ---
+        # A) Aziende: colonne logo embedded
+        try:
+            azi_cols = {r['name'] for r in conn.execute("PRAGMA table_info(aziende)").fetchall()}
+            if 'logo_b64' not in azi_cols:
+                conn.execute("ALTER TABLE aziende ADD COLUMN logo_b64 TEXT")
+            if 'logo_mime' not in azi_cols:
+                conn.execute("ALTER TABLE aziende ADD COLUMN logo_mime TEXT")
+        except Exception:
+            pass
+
+        # B) Appuntamenti: se manca (vecchi DB), creala
+        try:
+            conn.execute("SELECT 1 FROM appuntamenti LIMIT 1")
+        except Exception:
+            try:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS appuntamenti (
+                        id TEXT PRIMARY KEY,
+                        titolo TEXT NOT NULL,
+                        data DATE NOT NULL,
+                        ora TEXT,
+                        cliente_id TEXT,
+                        luogo TEXT,
+                        note TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (cliente_id) REFERENCES clienti(id) ON DELETE SET NULL
+                    )
+                """)
+            except Exception:
+                pass
+
         # --- MIGRAZIONI/REGOLA COMMERCIALE ---
         # Cartone fisso: 6 pezzi per tutti i prodotti.
         # (Serve anche per database già esistenti creati con default=1)
@@ -678,6 +711,72 @@ def delete_ordine(ordine_id: str) -> bool:
 # ============================================
 # PROMEMORIA
 # ============================================
+
+# ============================================
+# APPUNTAMENTI (CALENDARIO)
+# ============================================
+
+def save_appuntamento(data: Dict) -> str:
+    """Salva o aggiorna un appuntamento."""
+    conn = get_connection()
+    try:
+        if data.get('id'):
+            app_id = data['id']
+            fields = []
+            values = []
+            for k, v in data.items():
+                if k not in ('id', 'created_at'):
+                    fields.append(f"{k} = ?")
+                    values.append(v)
+            fields.append("updated_at = ?")
+            values.append(datetime.now().isoformat())
+            values.append(app_id)
+            conn.execute(f"UPDATE appuntamenti SET {', '.join(fields)} WHERE id = ?", values)
+        else:
+            app_id = generate_id()
+            data = dict(data)
+            data['id'] = app_id
+            data['created_at'] = datetime.now().isoformat()
+            data['updated_at'] = datetime.now().isoformat()
+            fields = list(data.keys())
+            placeholders = ', '.join(['?' for _ in fields])
+            conn.execute(f"INSERT INTO appuntamenti ({', '.join(fields)}) VALUES ({placeholders})", list(data.values()))
+        conn.commit()
+        return app_id
+    finally:
+        conn.close()
+
+
+def delete_appuntamento(app_id: str) -> None:
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM appuntamenti WHERE id = ?", (app_id,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_appuntamenti_range(date_from: str, date_to: str) -> List[Dict]:
+    """Ritorna appuntamenti in un range [date_from, date_to] (YYYY-MM-DD)."""
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT a.*, c.ragione_sociale AS cliente_nome
+            FROM appuntamenti a
+            LEFT JOIN clienti c ON a.cliente_id = c.id
+            WHERE a.data BETWEEN ? AND ?
+            ORDER BY a.data ASC, COALESCE(a.ora,'') ASC
+            """,
+            (date_from, date_to),
+        ).fetchall()
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
+def get_appuntamenti_by_date(date_iso: str) -> List[Dict]:
+    return get_appuntamenti_range(date_iso, date_iso)
 
 def get_promemoria(solo_attivi: bool = True, cliente_id: str = None) -> List[Dict]:
     """Ottiene i promemoria"""

@@ -9,11 +9,38 @@ from datetime import datetime, date, timedelta
 from typing import Optional, Dict, List
 import plotly.express as px
 import plotly.graph_objects as go
+import base64
+import calendar
 
 # Import moduli locali
 import db
 from pdf_ordine import genera_pdf_ordine_download
 from email_sender import send_email_with_attachment
+
+
+def _b64_to_bytes(b64_str: str) -> bytes:
+    try:
+        return base64.b64decode(b64_str)
+    except Exception:
+        return b""
+
+
+def _file_to_b64(uploaded_file) -> tuple[str, str]:
+    """(b64, mime)"""
+    if not uploaded_file:
+        return "", ""
+    data = uploaded_file.getvalue()
+    mime = getattr(uploaded_file, "type", "application/octet-stream") or "application/octet-stream"
+    return base64.b64encode(data).decode("utf-8"), mime
+
+
+def _initials(name: str) -> str:
+    parts = [p for p in (name or "").strip().split() if p]
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return (parts[0][0] + parts[1][0]).upper()
 
 # ============================================
 # CONFIGURAZIONE PAGINA
@@ -601,6 +628,11 @@ def init_session_state():
         'show_form': False,
         'editing_id': None,
         'selected_azienda_view': None,  # Per vedere prodotti di un'azienda
+        'selected_cliente_view': None,  # Vista dettaglio cliente
+        # Calendario
+        'cal_year': date.today().year,
+        'cal_month': date.today().month,
+        'cal_selected_date': date.today().isoformat(),
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -707,6 +739,7 @@ def render_bottom_nav():
         ('nuovo_ordine', '➕', 'Nuovo'),
         ('clienti', '👥', 'Clienti'),
         ('aziende', '🏭', 'Aziende'),
+        ('calendario', '📅', 'Calendario'),
     ]
     
     cols = st.columns(len(nav_items))
@@ -797,8 +830,8 @@ def render_dashboard():
             navigate_to('aziende')
             st.rerun()
     with col4:
-        if st.button("🔔\nPromemoria", key="action_promemoria", use_container_width=True):
-            navigate_to('promemoria')
+        if st.button("📅\nCalendario", key="action_calendario", use_container_width=True):
+            navigate_to('calendario')
             st.rerun()
     
     st.markdown("<br>", unsafe_allow_html=True)
@@ -875,28 +908,43 @@ def render_aziende():
         
         for azienda in aziende:
             num_prodotti = len(db.get_prodotti(azienda_id=azienda['id']))
-            
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.markdown(f"""
-                    <div class="list-item">
+
+            c_logo, c_info, c_btn = st.columns([1, 6, 1])
+            with c_logo:
+                if azienda.get('logo_b64'):
+                    st.image(_b64_to_bytes(azienda['logo_b64']), width=44)
+                else:
+                    ini = _initials(azienda.get('nome', '')) or "AZ"
+                    st.markdown(
+                        f"""
+                        <div style='width:44px;height:44px;border-radius:12px;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;'>
+                            {ini}
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+            with c_info:
+                subtitle = azienda.get('ragione_sociale', '') or azienda.get('citta', '') or 'Nessuna descrizione'
+                st.markdown(
+                    f"""
+                    <div class="list-item" style="margin:0;">
                         <div class="list-item-header">
                             <div>
-                                <p class="list-item-title">🏭 {azienda['nome']}</p>
-                                <p class="list-item-subtitle">{azienda.get('ragione_sociale', '') or azienda.get('citta', '') or 'Nessuna descrizione'}</p>
+                                <p class="list-item-title">{azienda['nome']}</p>
+                                <p class="list-item-subtitle">{subtitle}</p>
                             </div>
                             <span class="badge badge-info">{num_prodotti} prodotti</span>
                         </div>
                     </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                if st.button("📦", key=f"prod_{azienda['id']}", help="Gestisci prodotti"):
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+            with c_btn:
+                # Un solo bottone per evitare sovrapposizioni su schermi diversi
+                if st.button("Apri", key=f"prod_{azienda['id']}", use_container_width=True, type="primary"):
                     st.session_state.selected_azienda_view = azienda['id']
-                    st.rerun()
-                if st.button("✏️", key=f"edit_{azienda['id']}", help="Modifica"):
-                    st.session_state.show_form = True
-                    st.session_state.editing_id = azienda['id']
                     st.rerun()
     
     st.markdown("<br><br><br>", unsafe_allow_html=True)
@@ -912,8 +960,8 @@ def render_azienda_prodotti():
         st.rerun()
         return
     
-    # Header con pulsante indietro
-    col1, col2 = st.columns([1, 4])
+    # Header con pulsante indietro + modifica azienda
+    col1, col2, col3 = st.columns([1, 4, 1])
     with col1:
         if st.button("← Indietro"):
             st.session_state.selected_azienda_view = None
@@ -921,6 +969,14 @@ def render_azienda_prodotti():
             st.rerun()
     with col2:
         st.markdown(f"**{azienda['nome']}** · Catalogo Prodotti")
+    with col3:
+        if st.button("✏️ Modifica", use_container_width=True):
+            # Apri il form azienda (non il form prodotto)
+            st.session_state.selected_azienda_view = None
+            st.session_state.show_form = True
+            st.session_state.editing_id = azienda['id']
+            navigate_to('aziende', add_to_history=True)
+            st.rerun()
     
     st.markdown("<hr style='margin:0.5rem 0 1rem 0;border:none;border-top:1px solid #e5e7eb;'>", unsafe_allow_html=True)
     
@@ -979,6 +1035,12 @@ def render_form_azienda():
     with st.form("form_azienda"):
         nome = st.text_input("Nome Azienda *", value=azienda.get('nome', '') if azienda else '')
         ragione_sociale = st.text_input("Ragione Sociale", value=azienda.get('ragione_sociale', '') if azienda else '')
+
+        # Logo azienda (salvato nel DB in base64)
+        if azienda and azienda.get('logo_b64'):
+            st.caption("Logo attuale")
+            st.image(_b64_to_bytes(azienda['logo_b64']), width=140)
+        uploaded_logo = st.file_uploader("Carica logo (PNG/JPG)", type=["png", "jpg", "jpeg"], help="Sarà mostrato nelle liste e nella selezione ordine")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -1009,6 +1071,12 @@ def render_form_azienda():
                     'email': email,
                     'partita_iva': partita_iva,
                 }
+
+                if uploaded_logo is not None:
+                    b64, mime = _file_to_b64(uploaded_logo)
+                    if b64:
+                        data['logo_b64'] = b64
+                        data['logo_mime'] = mime
                 if st.session_state.editing_id:
                     data['id'] = st.session_state.editing_id
                 db.save_azienda(data)
@@ -1091,6 +1159,54 @@ def render_form_prodotto(azienda_id: str):
 
 def render_clienti():
     render_top_nav("Clienti", "Anagrafica")
+
+    # Vista dettaglio cliente (per evitare sovrapposizioni/expander)
+    if st.session_state.selected_cliente_view:
+        cliente = db.get_cliente(st.session_state.selected_cliente_view)
+        if not cliente:
+            st.session_state.selected_cliente_view = None
+            st.rerun()
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("← Indietro"):
+                st.session_state.selected_cliente_view = None
+                st.rerun()
+        with col2:
+            st.markdown(f"**{cliente['ragione_sociale']}**")
+
+        st.markdown("<hr style='margin:0.5rem 0 1rem 0;border:none;border-top:1px solid #e5e7eb;'>", unsafe_allow_html=True)
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(
+                f"""
+                **Codice:** {cliente.get('codice','-')}  
+                **Indirizzo:** {cliente.get('indirizzo','-')}  
+                **CAP/Città:** {cliente.get('cap','')} {cliente.get('citta','')} ({cliente.get('provincia','')})
+                """
+            )
+        with c2:
+            st.markdown(
+                f"""
+                **Telefono:** {cliente.get('telefono','-')}  
+                **Email:** {cliente.get('email','-')}  
+                **P.IVA:** {cliente.get('partita_iva','-')}
+                """
+            )
+
+        b1, b2, _ = st.columns([1, 1, 2])
+        with b1:
+            if st.button("✏️ Modifica", type="primary", use_container_width=True):
+                st.session_state.show_form = True
+                st.session_state.editing_id = cliente['id']
+                st.rerun()
+        with b2:
+            if cliente.get('indirizzo'):
+                st.link_button("🗺️ Maps", f"https://maps.google.com/?q={cliente['indirizzo']}, {cliente.get('citta','')}", use_container_width=True)
+
+        st.markdown("<br><br><br>", unsafe_allow_html=True)
+        render_bottom_nav()
+        return
     
     if st.session_state.show_form:
         render_form_cliente()
@@ -1119,30 +1235,25 @@ def render_clienti():
         """, unsafe_allow_html=True)
     else:
         for cliente in clienti:
-            with st.expander(f"🏢 {cliente['ragione_sociale']} · {cliente.get('citta', '')} ({cliente.get('provincia', '')})"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown(f"""
-                        **Codice:** {cliente.get('codice', '-')}<br>
-                        **Indirizzo:** {cliente.get('indirizzo', '-')}<br>
-                        **CAP/Città:** {cliente.get('cap', '')} {cliente.get('citta', '')} ({cliente.get('provincia', '')})
-                    """, unsafe_allow_html=True)
-                with col2:
-                    st.markdown(f"""
-                        **Telefono:** {cliente.get('telefono', '-')}<br>
-                        **Email:** {cliente.get('email', '-')}<br>
-                        **P.IVA:** {cliente.get('partita_iva', '-')}
-                    """, unsafe_allow_html=True)
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    if st.button("✏️ Modifica", key=f"ec_{cliente['id']}"):
-                        st.session_state.show_form = True
-                        st.session_state.editing_id = cliente['id']
-                        st.rerun()
-                with col2:
-                    if cliente.get('indirizzo'):
-                        st.link_button("🗺️ Maps", f"https://maps.google.com/?q={cliente['indirizzo']}, {cliente.get('citta', '')}")
+            c1, c2 = st.columns([6, 1])
+            with c1:
+                st.markdown(
+                    f"""
+                    <div class="list-item" style="margin:0;">
+                        <div class="list-item-header">
+                            <div>
+                                <p class="list-item-title">{cliente['ragione_sociale']}</p>
+                                <p class="list-item-subtitle">{cliente.get('citta','')} ({cliente.get('provincia','')}) · {cliente.get('indirizzo','') or ''}</p>
+                            </div>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            with c2:
+                if st.button("→", key=f"open_cli_{cliente['id']}", use_container_width=True):
+                    st.session_state.selected_cliente_view = cliente['id']
+                    st.rerun()
     
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     render_bottom_nav()
@@ -1363,17 +1474,32 @@ def render_step_fornitore():
     for azienda in aziende:
         num_prod = len(db.get_prodotti(azienda_id=azienda['id']))
         selected = st.session_state.ordine_azienda_id == azienda['id']
-        
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            st.markdown(f"""
-                <div class="list-item" style="{'border-color:#3b82f6;background:#eff6ff;' if selected else ''}">
-                    <p class="list-item-title">🏭 {azienda['nome']}</p>
-                    <p class="list-item-subtitle">{num_prod} prodotti</p>
-                </div>
-            """, unsafe_allow_html=True)
-        with col2:
-            if st.button("Seleziona" if not selected else "✓", key=f"sel_az_{azienda['id']}", type="primary" if selected else "secondary"):
+
+        c1, c2, c3 = st.columns([1, 5, 1])
+        with c1:
+            # Logo azienda (se presente)
+            if azienda.get('logo_b64'):
+                st.image(_b64_to_bytes(azienda['logo_b64']), width=48)
+            else:
+                ini = _initials(azienda.get('nome', '')) or "AZ"
+                st.markdown(
+                    f"""
+                    <div style='width:48px;height:48px;border-radius:12px;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;'>
+                        {ini}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+        with c2:
+            st.markdown(
+                f"""<div class='list-item' style="margin:0;{'border-color:#3b82f6;background:#eff6ff;' if selected else ''}">
+                        <p class='list-item-title' style='margin-bottom:0.125rem'>{azienda['nome']}</p>
+                        <p class='list-item-subtitle' style='margin:0'>{num_prod} prodotti</p>
+                    </div>""",
+                unsafe_allow_html=True,
+            )
+        with c3:
+            if st.button("✓" if selected else "Seleziona", key=f"sel_az_{azienda['id']}", type="primary" if selected else "secondary", use_container_width=True):
                 st.session_state.ordine_azienda_id = azienda['id']
                 st.session_state.ordine_step = 2
                 st.rerun()
@@ -1484,7 +1610,7 @@ def render_step_articoli():
                 step=1,
                 value=int(in_cart['quantita_cartoni']) if in_cart else int((pref or {}).get('quantita_cartoni', 0) or 0),
                 key=f"cart_{prod['id']}",
-                label_visibility="collapsed",
+                label_visibility="visible",
             )
         with col2:
             pezzi = st.number_input(
@@ -1493,27 +1619,27 @@ def render_step_articoli():
                 step=1,
                 value=int(in_cart['quantita_pezzi']) if in_cart else int((pref or {}).get('quantita_pezzi', 0) or 0),
                 key=f"pz_{prod['id']}",
-                label_visibility="collapsed",
+                label_visibility="visible",
             )
         with col3:
             # Prezzo modificabile nell'ordine (override rispetto al listino)
             prezzo_unitario = st.number_input(
-                "Prezzo €",
+                "Prezzo €/pz",
                 min_value=0.0,
                 step=0.01,
                 value=float(in_cart['prezzo_unitario']) if in_cart else float((pref or {}).get('prezzo_unitario') or prod['prezzo_listino']),
                 key=f"pr_{prod['id']}",
-                label_visibility="collapsed",
+                label_visibility="visible",
             )
         with col4:
             sconto = st.number_input(
-                "Sc.%",
+                "Sconto %",
                 min_value=0.0,
                 max_value=100.0,
                 step=0.5,
                 value=float(in_cart['sconto_riga']) if in_cart else float((pref or {}).get('sconto_riga', 0) or 0.0),
                 key=f"sc_{prod['id']}",
-                label_visibility="collapsed",
+                label_visibility="visible",
             )
 
         # Calcolo live: totale pezzi = cartoni*6 + pezzi (regola fissa)
@@ -1853,6 +1979,150 @@ def render_form_promemoria():
                 st.rerun()
 
 
+def render_calendario():
+    """Pagina calendario con vista mensile e gestione appuntamenti."""
+    render_top_nav("Calendario", "Appuntamenti")
+
+    # Layout: calendario a sinistra, dettaglio a destra
+    left, right = st.columns([3, 2])
+
+    year = st.session_state.cal_year
+    month = st.session_state.cal_month
+
+    with left:
+        c1, c2, c3 = st.columns([2, 2, 1])
+        with c1:
+            y = st.selectbox("Anno", options=list(range(date.today().year - 2, date.today().year + 3)), index=list(range(date.today().year - 2, date.today().year + 3)).index(year))
+        with c2:
+            mese_labels = [calendar.month_name[m] for m in range(1, 13)]
+            m = st.selectbox("Mese", options=list(range(1, 13)), format_func=lambda mm: mese_labels[mm - 1], index=month - 1)
+        with c3:
+            if st.button("Oggi", use_container_width=True):
+                st.session_state.cal_year = date.today().year
+                st.session_state.cal_month = date.today().month
+                st.session_state.cal_selected_date = date.today().isoformat()
+                st.rerun()
+
+        if y != year or m != month:
+            st.session_state.cal_year = y
+            st.session_state.cal_month = m
+            # se il giorno selezionato è fuori mese, resetta al primo
+            try:
+                dsel = date.fromisoformat(st.session_state.cal_selected_date)
+                if dsel.year != y or dsel.month != m:
+                    st.session_state.cal_selected_date = date(y, m, 1).isoformat()
+            except Exception:
+                st.session_state.cal_selected_date = date(y, m, 1).isoformat()
+            st.rerun()
+
+        # Carica appuntamenti del mese per contatori
+        first_day = date(y, m, 1)
+        last_day = date(y, m, calendar.monthrange(y, m)[1])
+        month_apps = db.get_appuntamenti_range(first_day.isoformat(), last_day.isoformat())
+        counts: Dict[int, int] = {}
+        for a in month_apps:
+            try:
+                dd = int(str(a['data']).split("-")[-1])
+                counts[dd] = counts.get(dd, 0) + 1
+            except Exception:
+                pass
+
+        # Header giorni
+        week_days = ["L", "M", "M", "G", "V", "S", "D"]
+        head_cols = st.columns(7)
+        for i, wd in enumerate(week_days):
+            with head_cols[i]:
+                st.markdown(f"<div style='text-align:center;font-weight:600;opacity:0.8'>{wd}</div>", unsafe_allow_html=True)
+
+        # Griglia mese (Monday-first)
+        for week in calendar.monthcalendar(y, m):
+            cols = st.columns(7)
+            for i, day_num in enumerate(week):
+                with cols[i]:
+                    if day_num == 0:
+                        st.markdown("&nbsp;", unsafe_allow_html=True)
+                        continue
+                    day_iso = date(y, m, day_num).isoformat()
+                    selected = (day_iso == st.session_state.cal_selected_date)
+                    badge = counts.get(day_num, 0)
+                    label = f"{day_num}" + (f" · {badge}" if badge else "")
+                    if st.button(label, key=f"cal_{y}_{m}_{day_num}", type="primary" if selected else "secondary", use_container_width=True):
+                        st.session_state.cal_selected_date = day_iso
+                        st.rerun()
+
+    with right:
+        # Dettaglio giorno selezionato
+        try:
+            selected_date = date.fromisoformat(st.session_state.cal_selected_date)
+        except Exception:
+            selected_date = date.today()
+            st.session_state.cal_selected_date = selected_date.isoformat()
+
+        st.markdown(f"**{selected_date.strftime('%A %d/%m/%Y')}**")
+        day_apps = db.get_appuntamenti_by_date(selected_date.isoformat())
+
+        if not day_apps:
+            st.info("Nessun appuntamento in questa data")
+        else:
+            for a in day_apps:
+                titolo = a.get('titolo', '')
+                ora = a.get('ora') or ""
+                cliente_nome = a.get('cliente_nome') or ""
+                luogo = a.get('luogo') or ""
+                st.markdown(
+                    f"""
+                    <div class='list-item' style='margin:0.25rem 0;'>
+                        <p class='list-item-title' style='margin-bottom:0.15rem;'>{ora} {titolo}</p>
+                        <p class='list-item-subtitle' style='margin:0;'>{cliente_nome}{' · ' if cliente_nome and luogo else ''}{luogo}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                if st.button("🗑️ Elimina", key=f"del_app_{a['id']}"):
+                    db.delete_appuntamento(a['id'])
+                    st.rerun()
+
+        st.markdown("---")
+        st.markdown("**➕ Nuovo appuntamento**")
+        clienti = db.get_clienti()
+        cli_opts = [("", "— Nessun cliente —")] + [(c['id'], c['ragione_sociale']) for c in clienti]
+
+        with st.form("form_app"):
+            titolo = st.text_input("Titolo *", placeholder="Es. Giro visite / consegna / degustazione")
+            senza_ora = st.checkbox("Senza ora (tutto il giorno)", value=False)
+            ora_t = None
+            if not senza_ora:
+                ora_t = st.time_input("Ora", value=datetime.now().replace(second=0, microsecond=0).time())
+            cliente_id = st.selectbox("Cliente", options=[x[0] for x in cli_opts], format_func=lambda _id: dict(cli_opts).get(_id, ""))
+            luogo = st.text_input("Luogo", placeholder="Indirizzo / città")
+            note = st.text_area("Note")
+
+            saved = st.form_submit_button("Salva", type="primary", use_container_width=True)
+            if saved:
+                if not titolo:
+                    st.error("Inserisci il titolo")
+                else:
+                    ora_str = None
+                    try:
+                        if ora_t:
+                            ora_str = ora_t.strftime("%H:%M")
+                    except Exception:
+                        ora_str = None
+                    db.save_appuntamento({
+                        'titolo': titolo,
+                        'data': selected_date.isoformat(),
+                        'ora': ora_str,
+                        'cliente_id': cliente_id or None,
+                        'luogo': luogo,
+                        'note': note,
+                    })
+                    st.success("Appuntamento salvato")
+                    st.rerun()
+
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    render_bottom_nav()
+
+
 # ============================================
 # MAIN
 # ============================================
@@ -1876,6 +2146,8 @@ def main():
         render_ordini()
     elif page == 'nuovo_ordine':
         render_nuovo_ordine()
+    elif page == 'calendario':
+        render_calendario()
     elif page == 'promemoria':
         render_promemoria()
     else:
