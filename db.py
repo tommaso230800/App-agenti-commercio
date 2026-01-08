@@ -1,378 +1,976 @@
-from __future__ import annotations
+"""
+PORTALE AGENTE DI COMMERCIO
+Database Manager - Gestione completa SQLite
+"""
 
-import os
 import sqlite3
-from pathlib import Path
-from datetime import datetime
+import os
+from datetime import datetime, date
+from typing import Optional, List, Dict, Any, Tuple
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+import json
+
+# Path del database
+DB_PATH = os.path.join(os.path.dirname(__file__), 'portale_agente.db')
+SCHEMA_PATH = os.path.join(os.path.dirname(__file__), 'schema.sql')
 
 
-ROOT_DIR = Path(__file__).resolve().parent
-DEFAULT_DB_PATH = ROOT_DIR / "data" / "app.db"
-
-
-def now_iso() -> str:
-    return datetime.now().isoformat(timespec="seconds")
-
-
-def uid() -> str:
-    return str(uuid.uuid4())
-
-
-def get_conn(db_path: Optional[str] = None) -> sqlite3.Connection:
-    path = Path(db_path or os.getenv("DB_PATH", str(DEFAULT_DB_PATH)))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path), check_same_thread=False)
+def get_connection() -> sqlite3.Connection:
+    """Ottiene una connessione al database con row_factory"""
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
-def init_db(conn: sqlite3.Connection) -> None:
-    schema_path = ROOT_DIR / "schema.sql"
-    sql = schema_path.read_text(encoding="utf-8")
-    conn.executescript(sql)
-    conn.commit()
-
-
-# --------------------- Aziende ---------------------
-
-def list_aziende(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
-    cur = conn.execute("SELECT * FROM aziende ORDER BY nome ASC;")
-    return [dict(r) for r in cur.fetchall()]
-
-
-def get_azienda(conn: sqlite3.Connection, azienda_id: str) -> Optional[Dict[str, Any]]:
-    cur = conn.execute("SELECT * FROM aziende WHERE id=?;", (azienda_id,))
-    row = cur.fetchone()
-    return dict(row) if row else None
-
-
-def upsert_azienda(conn: sqlite3.Connection, data: Dict[str, Any]) -> str:
-    azienda_id = data.get("id") or uid()
-    payload = {
-        "id": azienda_id,
-        "nome": data.get("nome", "").strip(),
-        "ragione_sociale": data.get("ragione_sociale", "").strip(),
-        "indirizzo": data.get("indirizzo", "").strip(),
-        "citta": data.get("citta", "").strip(),
-        "provincia": data.get("provincia", "").strip(),
-        "cap": data.get("cap", "").strip(),
-        "partita_iva": data.get("partita_iva", "").strip(),
-        "email": data.get("email", "").strip(),
-        "telefono": data.get("telefono", "").strip(),
-        "created_at": data.get("created_at") or now_iso(),
-    }
-    conn.execute("""
-        INSERT INTO aziende (id, nome, ragione_sociale, indirizzo, citta, provincia, cap, partita_iva, email, telefono, created_at)
-        VALUES (:id,:nome,:ragione_sociale,:indirizzo,:citta,:provincia,:cap,:partita_iva,:email,:telefono,:created_at)
-        ON CONFLICT(id) DO UPDATE SET
-            nome=excluded.nome,
-            ragione_sociale=excluded.ragione_sociale,
-            indirizzo=excluded.indirizzo,
-            citta=excluded.citta,
-            provincia=excluded.provincia,
-            cap=excluded.cap,
-            partita_iva=excluded.partita_iva,
-            email=excluded.email,
-            telefono=excluded.telefono;
-    """, payload)
-    conn.commit()
-    return azienda_id
-
-
-def delete_azienda(conn: sqlite3.Connection, azienda_id: str) -> None:
-    conn.execute("DELETE FROM aziende WHERE id=?;", (azienda_id,))
-    conn.commit()
-
-
-# --------------------- Clienti ---------------------
-
-def list_clienti(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
-    cur = conn.execute("SELECT * FROM clienti ORDER BY nome_azienda ASC;")
-    return [dict(r) for r in cur.fetchall()]
-
-
-def get_cliente(conn: sqlite3.Connection, cliente_id: str) -> Optional[Dict[str, Any]]:
-    cur = conn.execute("SELECT * FROM clienti WHERE id=?;", (cliente_id,))
-    row = cur.fetchone()
-    return dict(row) if row else None
-
-
-def upsert_cliente(conn: sqlite3.Connection, data: Dict[str, Any]) -> str:
-    cliente_id = data.get("id") or uid()
-    payload = {
-        "id": cliente_id,
-        "nome_azienda": data.get("nome_azienda", "").strip(),
-        "tipo": data.get("tipo", "distributore"),
-        "indirizzo": data.get("indirizzo", "").strip(),
-        "citta": data.get("citta", "").strip(),
-        "provincia": data.get("provincia", "").strip(),
-        "cap": data.get("cap", "").strip(),
-        "telefono": data.get("telefono", "").strip(),
-        "email": data.get("email", "").strip(),
-        "referente_nome": data.get("referente_nome", "").strip(),
-        "referente_ruolo": data.get("referente_ruolo", "").strip(),
-        "partita_iva": data.get("partita_iva", "").strip(),
-        "categoria": data.get("categoria", "C"),
-        "note": data.get("note", "").strip(),
-        "created_at": data.get("created_at") or now_iso(),
-        "updated_at": now_iso(),
-    }
-    conn.execute("""
-        INSERT INTO clienti (id,nome_azienda,tipo,indirizzo,citta,provincia,cap,telefono,email,referente_nome,referente_ruolo,partita_iva,categoria,note,created_at,updated_at)
-        VALUES (:id,:nome_azienda,:tipo,:indirizzo,:citta,:provincia,:cap,:telefono,:email,:referente_nome,:referente_ruolo,:partita_iva,:categoria,:note,:created_at,:updated_at)
-        ON CONFLICT(id) DO UPDATE SET
-            nome_azienda=excluded.nome_azienda,
-            tipo=excluded.tipo,
-            indirizzo=excluded.indirizzo,
-            citta=excluded.citta,
-            provincia=excluded.provincia,
-            cap=excluded.cap,
-            telefono=excluded.telefono,
-            email=excluded.email,
-            referente_nome=excluded.referente_nome,
-            referente_ruolo=excluded.referente_ruolo,
-            partita_iva=excluded.partita_iva,
-            categoria=excluded.categoria,
-            note=excluded.note,
-            updated_at=excluded.updated_at;
-    """, payload)
-    conn.commit()
-    return cliente_id
-
-
-def delete_cliente(conn: sqlite3.Connection, cliente_id: str) -> None:
-    conn.execute("DELETE FROM clienti WHERE id=?;", (cliente_id,))
-    conn.commit()
-
-
-# --------------------- Prodotti ---------------------
-
-def list_prodotti(conn: sqlite3.Connection, azienda_id: Optional[str] = None, only_active: bool = True) -> List[Dict[str, Any]]:
-    q = "SELECT * FROM prodotti"
-    params: List[Any] = []
-    conds = []
-    if azienda_id:
-        conds.append("azienda_id=?")
-        params.append(azienda_id)
-    if only_active:
-        conds.append("attivo=1")
-    if conds:
-        q += " WHERE " + " AND ".join(conds)
-    q += " ORDER BY nome ASC;"
-    cur = conn.execute(q, params)
-    return [dict(r) for r in cur.fetchall()]
-
-
-def upsert_prodotto(conn: sqlite3.Connection, data: Dict[str, Any]) -> str:
-    prodotto_id = data.get("id") or uid()
-    payload = {
-        "id": prodotto_id,
-        "azienda_id": data["azienda_id"],
-        "codice": data.get("codice", "").strip(),
-        "nome": data.get("nome", "").strip(),
-        "prezzo_unitario": float(data.get("prezzo_unitario") or 0),
-        "pezzi_per_cartone": int(data.get("pezzi_per_cartone") or 1),
-        "unita_minima": data.get("unita_minima", "cartone/bottiglia"),
-        "attivo": 1 if data.get("attivo", True) else 0,
-        "created_at": data.get("created_at") or now_iso(),
-    }
-    conn.execute("""
-        INSERT INTO prodotti (id,azienda_id,codice,nome,prezzo_unitario,pezzi_per_cartone,unita_minima,attivo,created_at)
-        VALUES (:id,:azienda_id,:codice,:nome,:prezzo_unitario,:pezzi_per_cartone,:unita_minima,:attivo,:created_at)
-        ON CONFLICT(id) DO UPDATE SET
-            azienda_id=excluded.azienda_id,
-            codice=excluded.codice,
-            nome=excluded.nome,
-            prezzo_unitario=excluded.prezzo_unitario,
-            pezzi_per_cartone=excluded.pezzi_per_cartone,
-            unita_minima=excluded.unita_minima,
-            attivo=excluded.attivo;
-    """, payload)
-    conn.commit()
-    return prodotto_id
-
-
-def delete_prodotto(conn: sqlite3.Connection, prodotto_id: str) -> None:
-    conn.execute("DELETE FROM prodotti WHERE id=?;", (prodotto_id,))
-    conn.commit()
-
-
-def list_prodotti_gia_acquistati(conn: sqlite3.Connection, azienda_id: str, cliente_id: str) -> List[str]:
-    """
-    Ritorna la lista di prodotto_id già acquistati in passato dal cliente per quella azienda.
-    """
-    cur = conn.execute("""
-        SELECT DISTINCT r.prodotto_id
-        FROM ordini o
-        JOIN ordine_righe r ON r.ordine_id=o.id
-        WHERE o.azienda_id=? AND o.cliente_id=? AND o.stato IN ('confermato','aperto');
-    """, (azienda_id, cliente_id))
-    return [row["prodotto_id"] for row in cur.fetchall()]
-
-
-# --------------------- Ordini + Proforma ---------------------
-
-def _next_progressivo(conn: sqlite3.Connection, prefix: str, year: int) -> int:
-    like = f"{prefix}-{year}-%"
-    cur = conn.execute("SELECT numero FROM ordini WHERE numero LIKE ? ORDER BY numero DESC LIMIT 1;", (like,))
-    row = cur.fetchone()
-    if not row:
-        return 1
-    m = row["numero"].split("-")
+def init_db():
+    """Inizializza il database con lo schema"""
+    conn = get_connection()
     try:
-        return int(m[-1]) + 1
-    except Exception:
-        return 1
+        with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
+            schema = f.read()
+        conn.executescript(schema)
+        conn.commit()
+    finally:
+        conn.close()
 
 
-def create_ordine(conn: sqlite3.Connection, azienda_id: str, cliente_id: str, righe: List[Dict[str, Any]], note: str = "") -> Dict[str, Any]:
-    azienda = get_azienda(conn, azienda_id)
-    if not azienda:
-        raise ValueError("Azienda non trovata")
-    cliente = get_cliente(conn, cliente_id)
-    if not cliente:
-        raise ValueError("Cliente non trovato")
-
-    year = datetime.now().year
-    prefix = (azienda.get("nome") or "AZ").strip().upper()
-    prefix = "".join([c for c in prefix if c.isalnum()])[:3] or "AZ"
-    prog = _next_progressivo(conn, prefix, year)
-    numero = f"{prefix}-{year}-{prog:04d}"
-
-    ordine_id = uid()
-    data_ordine = now_iso()
-    created_at = now_iso()
-
-    # calcoli righe
-    imponibile = 0.0
-    righe_to_insert = []
-    for r in righe:
-        prodotto = r["prodotto"]
-        cartoni = int(r.get("cartoni") or 0)
-        bottiglie = int(r.get("bottiglie") or 0)
-        ppc = int(prodotto["pezzi_per_cartone"] or 1)
-        pezzi = cartoni * ppc + bottiglie
-        prezzo = float(prodotto["prezzo_unitario"] or 0)
-        totale = pezzi * prezzo
-        imponibile += totale
-        righe_to_insert.append({
-            "id": uid(),
-            "ordine_id": ordine_id,
-            "prodotto_id": prodotto["id"],
-            "codice_prodotto": prodotto["codice"],
-            "nome_prodotto": prodotto["nome"],
-            "cartoni": cartoni,
-            "bottiglie": bottiglie,
-            "pezzi_totali": pezzi,
-            "prezzo_unitario": prezzo,
-            "totale_riga": totale,
-        })
-
-    conn.execute("""
-        INSERT INTO ordini (id,numero,azienda_id,cliente_id,data_ordine,note,imponibile,stato,created_at)
-        VALUES (?,?,?,?,?,?,?,?,?);
-    """, (ordine_id, numero, azienda_id, cliente_id, data_ordine, note, imponibile, "confermato", created_at))
-
-    conn.executemany("""
-        INSERT INTO ordine_righe (id,ordine_id,prodotto_id,codice_prodotto,nome_prodotto,cartoni,bottiglie,pezzi_totali,prezzo_unitario,totale_riga)
-        VALUES (:id,:ordine_id,:prodotto_id,:codice_prodotto,:nome_prodotto,:cartoni,:bottiglie,:pezzi_totali,:prezzo_unitario,:totale_riga);
-    """, righe_to_insert)
-
-    conn.commit()
-
-    return {
-        "id": ordine_id,
-        "numero": numero,
-        "azienda": azienda,
-        "cliente": cliente,
-        "data_ordine": data_ordine,
-        "note": note,
-        "imponibile": imponibile,
-        "righe": righe_to_insert,
-    }
+def generate_id() -> str:
+    """Genera un ID univoco"""
+    return str(uuid.uuid4())
 
 
-def list_ordini(conn: sqlite3.Connection, azienda_id: Optional[str] = None) -> List[Dict[str, Any]]:
-    q = """
-        SELECT o.*,
-               a.nome as azienda_nome,
-               c.nome_azienda as cliente_nome
-        FROM ordini o
-        JOIN aziende a ON a.id=o.azienda_id
-        JOIN clienti c ON c.id=o.cliente_id
-    """
-    params: List[Any] = []
-    if azienda_id:
-        q += " WHERE o.azienda_id=?"
-        params.append(azienda_id)
-    q += " ORDER BY o.data_ordine DESC;"
-    cur = conn.execute(q, params)
-    return [dict(r) for r in cur.fetchall()]
-
-
-def get_ordine(conn: sqlite3.Connection, ordine_id: str) -> Optional[Dict[str, Any]]:
-    cur = conn.execute("""
-        SELECT o.*,
-               a.nome as azienda_nome,
-               c.nome_azienda as cliente_nome
-        FROM ordini o
-        JOIN aziende a ON a.id=o.azienda_id
-        JOIN clienti c ON c.id=o.cliente_id
-        WHERE o.id=?;
-    """, (ordine_id,))
-    o = cur.fetchone()
-    if not o:
+def row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
+    """Converte una riga SQLite in dizionario"""
+    if row is None:
         return None
-    righe = conn.execute("SELECT * FROM ordine_righe WHERE ordine_id=? ORDER BY nome_prodotto ASC;", (ordine_id,)).fetchall()
-    pro = conn.execute("SELECT * FROM proforme WHERE ordine_id=?;", (ordine_id,)).fetchone()
-    return {**dict(o), "righe": [dict(r) for r in righe], "proforma": dict(pro) if pro else None}
+    return dict(row)
 
 
-def _next_proforma_progressivo(conn: sqlite3.Connection, azienda_prefix: str, year: int) -> int:
-    like = f"{azienda_prefix}-{year}-%"
-    cur = conn.execute("SELECT numero FROM proforme WHERE numero LIKE ? ORDER BY numero DESC LIMIT 1;", (like,))
-    row = cur.fetchone()
-    if not row:
-        return 1
+def rows_to_list(rows: List[sqlite3.Row]) -> List[Dict[str, Any]]:
+    """Converte una lista di righe in lista di dizionari"""
+    return [row_to_dict(row) for row in rows]
+
+
+# ============================================
+# AZIENDE
+# ============================================
+
+def get_aziende(solo_attive: bool = True) -> List[Dict]:
+    """Ottiene tutte le aziende"""
+    conn = get_connection()
     try:
-        return int(row["numero"].split("-")[-1]) + 1
-    except Exception:
-        return 1
+        query = "SELECT * FROM aziende"
+        if solo_attive:
+            query += " WHERE attivo = 1"
+        query += " ORDER BY nome"
+        rows = conn.execute(query).fetchall()
+        return rows_to_list(rows)
+    finally:
+        conn.close()
 
 
-def create_proforma_record(conn: sqlite3.Connection, ordine_id: str, pdf_path: str) -> Dict[str, Any]:
-    ordine = get_ordine(conn, ordine_id)
-    if not ordine:
-        raise ValueError("Ordine non trovato")
-    azienda = get_azienda(conn, ordine["azienda_id"])
-    if not azienda:
-        raise ValueError("Azienda non trovata")
+def get_azienda(azienda_id: str) -> Optional[Dict]:
+    """Ottiene un'azienda per ID"""
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT * FROM aziende WHERE id = ?", (azienda_id,)).fetchone()
+        return row_to_dict(row)
+    finally:
+        conn.close()
 
-    year = datetime.now().year
-    prefix = (azienda.get("nome") or "AZ").strip().upper()
-    prefix = "".join([c for c in prefix if c.isalnum()])[:3] or "AZ"
-    prog = _next_proforma_progressivo(conn, prefix, year)
-    numero = f"{prefix}-{year}-{prog:04d}"
 
-    pro_id = uid()
-    data_proforma = now_iso()
-    created_at = now_iso()
+def save_azienda(data: Dict) -> str:
+    """Salva o aggiorna un'azienda"""
+    conn = get_connection()
+    try:
+        if 'id' in data and data['id']:
+            # Update
+            azienda_id = data['id']
+            fields = []
+            values = []
+            for key, value in data.items():
+                if key != 'id' and key != 'created_at':
+                    fields.append(f"{key} = ?")
+                    values.append(value)
+            fields.append("updated_at = ?")
+            values.append(datetime.now().isoformat())
+            values.append(azienda_id)
+            
+            query = f"UPDATE aziende SET {', '.join(fields)} WHERE id = ?"
+            conn.execute(query, values)
+        else:
+            # Insert
+            azienda_id = generate_id()
+            data['id'] = azienda_id
+            data['created_at'] = datetime.now().isoformat()
+            data['updated_at'] = datetime.now().isoformat()
+            
+            fields = list(data.keys())
+            placeholders = ', '.join(['?' for _ in fields])
+            query = f"INSERT INTO aziende ({', '.join(fields)}) VALUES ({placeholders})"
+            conn.execute(query, list(data.values()))
+        
+        conn.commit()
+        return azienda_id
+    finally:
+        conn.close()
 
-    conn.execute("""
-        INSERT INTO proforme (id, ordine_id, numero, data_proforma, imponibile, pdf_path, created_at)
-        VALUES (?,?,?,?,?,?,?);
-    """, (pro_id, ordine_id, numero, data_proforma, float(ordine["imponibile"]), pdf_path, created_at))
-    conn.commit()
 
-    return {
-        "id": pro_id,
-        "ordine_id": ordine_id,
-        "numero": numero,
-        "data_proforma": data_proforma,
-        "imponibile": float(ordine["imponibile"]),
-        "pdf_path": pdf_path,
-        "created_at": created_at,
-    }
+def delete_azienda(azienda_id: str) -> bool:
+    """Elimina un'azienda (soft delete)"""
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE aziende SET attivo = 0, updated_at = ? WHERE id = ?",
+                    (datetime.now().isoformat(), azienda_id))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+# ============================================
+# CLIENTI
+# ============================================
+
+def get_clienti(solo_attivi: bool = True, search: str = None) -> List[Dict]:
+    """Ottiene tutti i clienti"""
+    conn = get_connection()
+    try:
+        query = "SELECT * FROM clienti WHERE 1=1"
+        params = []
+        
+        if solo_attivi:
+            query += " AND attivo = 1"
+        
+        if search:
+            query += " AND (ragione_sociale LIKE ? OR codice LIKE ? OR citta LIKE ?)"
+            search_param = f"%{search}%"
+            params.extend([search_param, search_param, search_param])
+        
+        query += " ORDER BY ragione_sociale"
+        rows = conn.execute(query, params).fetchall()
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
+def get_cliente(cliente_id: str) -> Optional[Dict]:
+    """Ottiene un cliente per ID"""
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT * FROM clienti WHERE id = ?", (cliente_id,)).fetchone()
+        return row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def save_cliente(data: Dict) -> str:
+    """Salva o aggiorna un cliente"""
+    conn = get_connection()
+    try:
+        if 'id' in data and data['id']:
+            # Update
+            cliente_id = data['id']
+            fields = []
+            values = []
+            for key, value in data.items():
+                if key != 'id' and key != 'created_at':
+                    fields.append(f"{key} = ?")
+                    values.append(value)
+            fields.append("updated_at = ?")
+            values.append(datetime.now().isoformat())
+            values.append(cliente_id)
+            
+            query = f"UPDATE clienti SET {', '.join(fields)} WHERE id = ?"
+            conn.execute(query, values)
+        else:
+            # Insert
+            cliente_id = generate_id()
+            data['id'] = cliente_id
+            data['created_at'] = datetime.now().isoformat()
+            data['updated_at'] = datetime.now().isoformat()
+            
+            fields = list(data.keys())
+            placeholders = ', '.join(['?' for _ in fields])
+            query = f"INSERT INTO clienti ({', '.join(fields)}) VALUES ({placeholders})"
+            conn.execute(query, list(data.values()))
+        
+        conn.commit()
+        return cliente_id
+    finally:
+        conn.close()
+
+
+def delete_cliente(cliente_id: str) -> bool:
+    """Elimina un cliente (soft delete)"""
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE clienti SET attivo = 0, updated_at = ? WHERE id = ?",
+                    (datetime.now().isoformat(), cliente_id))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+# ============================================
+# PRODOTTI
+# ============================================
+
+def get_prodotti(azienda_id: str = None, search: str = None, solo_disponibili: bool = True) -> List[Dict]:
+    """Ottiene i prodotti, opzionalmente filtrati per azienda"""
+    conn = get_connection()
+    try:
+        query = """
+            SELECT p.*, a.nome AS azienda_nome 
+            FROM prodotti p
+            LEFT JOIN aziende a ON p.azienda_id = a.id
+            WHERE 1=1
+        """
+        params = []
+        
+        if azienda_id:
+            query += " AND p.azienda_id = ?"
+            params.append(azienda_id)
+        
+        if solo_disponibili:
+            query += " AND p.disponibile = 1"
+        
+        if search:
+            query += " AND (p.nome LIKE ? OR p.codice LIKE ? OR p.descrizione LIKE ?)"
+            search_param = f"%{search}%"
+            params.extend([search_param, search_param, search_param])
+        
+        query += " ORDER BY p.nome"
+        rows = conn.execute(query, params).fetchall()
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
+def get_prodotto(prodotto_id: str) -> Optional[Dict]:
+    """Ottiene un prodotto per ID"""
+    conn = get_connection()
+    try:
+        row = conn.execute("""
+            SELECT p.*, a.nome AS azienda_nome 
+            FROM prodotti p
+            LEFT JOIN aziende a ON p.azienda_id = a.id
+            WHERE p.id = ?
+        """, (prodotto_id,)).fetchone()
+        return row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def get_prodotti_acquistati_cliente(cliente_id: str, azienda_id: str = None) -> List[str]:
+    """Ottiene gli ID dei prodotti già acquistati da un cliente"""
+    conn = get_connection()
+    try:
+        query = """
+            SELECT DISTINCT r.prodotto_id
+            FROM ordini_righe r
+            JOIN ordini o ON r.ordine_id = o.id
+            WHERE o.cliente_id = ? AND o.stato IN ('inviato', 'confermato', 'evaso')
+        """
+        params = [cliente_id]
+        
+        if azienda_id:
+            query += " AND o.azienda_id = ?"
+            params.append(azienda_id)
+        
+        rows = conn.execute(query, params).fetchall()
+        return [row['prodotto_id'] for row in rows]
+    finally:
+        conn.close()
+
+
+def save_prodotto(data: Dict) -> str:
+    """Salva o aggiorna un prodotto"""
+    conn = get_connection()
+    try:
+        if 'id' in data and data['id']:
+            # Update
+            prodotto_id = data['id']
+            fields = []
+            values = []
+            for key, value in data.items():
+                if key != 'id' and key != 'created_at':
+                    fields.append(f"{key} = ?")
+                    values.append(value)
+            fields.append("updated_at = ?")
+            values.append(datetime.now().isoformat())
+            values.append(prodotto_id)
+            
+            query = f"UPDATE prodotti SET {', '.join(fields)} WHERE id = ?"
+            conn.execute(query, values)
+        else:
+            # Insert
+            prodotto_id = generate_id()
+            data['id'] = prodotto_id
+            data['created_at'] = datetime.now().isoformat()
+            data['updated_at'] = datetime.now().isoformat()
+            
+            fields = list(data.keys())
+            placeholders = ', '.join(['?' for _ in fields])
+            query = f"INSERT INTO prodotti ({', '.join(fields)}) VALUES ({placeholders})"
+            conn.execute(query, list(data.values()))
+        
+        conn.commit()
+        return prodotto_id
+    finally:
+        conn.close()
+
+
+def delete_prodotto(prodotto_id: str) -> bool:
+    """Elimina un prodotto"""
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM prodotti WHERE id = ?", (prodotto_id,))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+# ============================================
+# ORDINI
+# ============================================
+
+def get_prossimo_numero_ordine() -> str:
+    """Genera il prossimo numero ordine"""
+    conn = get_connection()
+    try:
+        # Ottieni impostazioni
+        row = conn.execute("SELECT valore FROM impostazioni WHERE chiave = 'numero_ordine_progressivo'").fetchone()
+        progressivo = int(row['valore']) if row else 1
+        
+        row = conn.execute("SELECT valore FROM impostazioni WHERE chiave = 'numero_ordine_prefisso'").fetchone()
+        prefisso = row['valore'] if row else 'ORD'
+        
+        row = conn.execute("SELECT valore FROM impostazioni WHERE chiave = 'numero_ordine_anno'").fetchone()
+        include_anno = row['valore'] == '1' if row else True
+        
+        # Genera numero
+        anno = datetime.now().year
+        if include_anno:
+            numero = f"{prefisso}-{anno}-{progressivo:05d}"
+        else:
+            numero = f"{prefisso}-{progressivo:05d}"
+        
+        # Incrementa progressivo
+        conn.execute("UPDATE impostazioni SET valore = ?, updated_at = ? WHERE chiave = 'numero_ordine_progressivo'",
+                    (str(progressivo + 1), datetime.now().isoformat()))
+        conn.commit()
+        
+        return numero
+    finally:
+        conn.close()
+
+
+def get_ordini(stato: str = None, azienda_id: str = None, cliente_id: str = None, 
+               data_da: str = None, data_a: str = None, limit: int = None) -> List[Dict]:
+    """Ottiene gli ordini con filtri"""
+    conn = get_connection()
+    try:
+        query = """
+            SELECT o.*, 
+                   a.nome AS azienda_nome,
+                   c.ragione_sociale AS cliente_ragione_sociale,
+                   c.citta AS cliente_citta,
+                   c.provincia AS cliente_provincia
+            FROM ordini o
+            LEFT JOIN aziende a ON o.azienda_id = a.id
+            LEFT JOIN clienti c ON o.cliente_id = c.id
+            WHERE 1=1
+        """
+        params = []
+        
+        if stato:
+            query += " AND o.stato = ?"
+            params.append(stato)
+        
+        if azienda_id:
+            query += " AND o.azienda_id = ?"
+            params.append(azienda_id)
+        
+        if cliente_id:
+            query += " AND o.cliente_id = ?"
+            params.append(cliente_id)
+        
+        if data_da:
+            query += " AND o.data_ordine >= ?"
+            params.append(data_da)
+        
+        if data_a:
+            query += " AND o.data_ordine <= ?"
+            params.append(data_a)
+        
+        query += " ORDER BY o.data_ordine DESC, o.numero DESC"
+        
+        if limit:
+            query += f" LIMIT {limit}"
+        
+        rows = conn.execute(query, params).fetchall()
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
+def get_ordine(ordine_id: str) -> Optional[Dict]:
+    """Ottiene un ordine con tutti i dettagli"""
+    conn = get_connection()
+    try:
+        # Testata
+        row = conn.execute("""
+            SELECT o.*, 
+                   a.nome AS azienda_nome,
+                   a.ragione_sociale AS azienda_ragione_sociale,
+                   a.indirizzo AS azienda_indirizzo,
+                   a.citta AS azienda_citta,
+                   a.provincia AS azienda_provincia,
+                   a.cap AS azienda_cap,
+                   a.telefono AS azienda_telefono,
+                   a.email AS azienda_email,
+                   a.partita_iva AS azienda_piva,
+                   c.ragione_sociale AS cliente_ragione_sociale,
+                   c.indirizzo AS cliente_indirizzo,
+                   c.citta AS cliente_citta,
+                   c.provincia AS cliente_provincia,
+                   c.cap AS cliente_cap,
+                   c.telefono AS cliente_telefono,
+                   c.email AS cliente_email,
+                   c.partita_iva AS cliente_piva,
+                   c.codice_fiscale AS cliente_cf
+            FROM ordini o
+            LEFT JOIN aziende a ON o.azienda_id = a.id
+            LEFT JOIN clienti c ON o.cliente_id = c.id
+            WHERE o.id = ?
+        """, (ordine_id,)).fetchone()
+        
+        if not row:
+            return None
+        
+        ordine = row_to_dict(row)
+        
+        # Righe
+        righe = conn.execute("""
+            SELECT r.*, p.codice AS prodotto_codice, p.nome AS prodotto_nome,
+                   p.unita_misura, p.pezzi_per_cartone
+            FROM ordini_righe r
+            LEFT JOIN prodotti p ON r.prodotto_id = p.id
+            WHERE r.ordine_id = ?
+            ORDER BY r.posizione
+        """, (ordine_id,)).fetchall()
+        
+        ordine['righe'] = rows_to_list(righe)
+        
+        return ordine
+    finally:
+        conn.close()
+
+
+def save_ordine(testata: Dict, righe: List[Dict]) -> str:
+    """Salva un ordine completo (testata + righe)"""
+    conn = get_connection()
+    try:
+        if 'id' in testata and testata['id']:
+            ordine_id = testata['id']
+            # Update testata
+            fields = []
+            values = []
+            for key, value in testata.items():
+                if key != 'id' and key != 'created_at' and not key.startswith('azienda_') and not key.startswith('cliente_'):
+                    fields.append(f"{key} = ?")
+                    values.append(value)
+            fields.append("updated_at = ?")
+            values.append(datetime.now().isoformat())
+            values.append(ordine_id)
+            
+            query = f"UPDATE ordini SET {', '.join(fields)} WHERE id = ?"
+            conn.execute(query, values)
+            
+            # Elimina vecchie righe
+            conn.execute("DELETE FROM ordini_righe WHERE ordine_id = ?", (ordine_id,))
+        else:
+            # Insert testata
+            ordine_id = generate_id()
+            testata['id'] = ordine_id
+            testata['created_at'] = datetime.now().isoformat()
+            testata['updated_at'] = datetime.now().isoformat()
+            
+            # Rimuovi campi non della tabella
+            insert_data = {k: v for k, v in testata.items() 
+                         if not k.startswith('azienda_') and not k.startswith('cliente_')}
+            
+            fields = list(insert_data.keys())
+            placeholders = ', '.join(['?' for _ in fields])
+            query = f"INSERT INTO ordini ({', '.join(fields)}) VALUES ({placeholders})"
+            conn.execute(query, list(insert_data.values()))
+        
+        # Insert righe
+        for i, riga in enumerate(righe):
+            riga_id = generate_id()
+            riga['id'] = riga_id
+            riga['ordine_id'] = ordine_id
+            riga['posizione'] = i + 1
+            riga['created_at'] = datetime.now().isoformat()
+            
+            # Rimuovi campi non della tabella
+            insert_riga = {k: v for k, v in riga.items() 
+                         if not k.startswith('prodotto_') or k == 'prodotto_id'}
+            
+            fields = list(insert_riga.keys())
+            placeholders = ', '.join(['?' for _ in fields])
+            query = f"INSERT INTO ordini_righe ({', '.join(fields)}) VALUES ({placeholders})"
+            conn.execute(query, list(insert_riga.values()))
+        
+        conn.commit()
+        return ordine_id
+    finally:
+        conn.close()
+
+
+def update_stato_ordine(ordine_id: str, nuovo_stato: str) -> bool:
+    """Aggiorna lo stato di un ordine"""
+    conn = get_connection()
+    try:
+        now = datetime.now().isoformat()
+        
+        update_fields = ["stato = ?", "updated_at = ?"]
+        params = [nuovo_stato, now]
+        
+        if nuovo_stato == 'inviato':
+            update_fields.append("data_invio = ?")
+            params.append(now)
+        elif nuovo_stato == 'confermato':
+            update_fields.append("data_conferma = ?")
+            params.append(now)
+        elif nuovo_stato == 'evaso':
+            update_fields.append("data_evasione = ?")
+            params.append(now)
+        
+        params.append(ordine_id)
+        
+        query = f"UPDATE ordini SET {', '.join(update_fields)} WHERE id = ?"
+        conn.execute(query, params)
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def delete_ordine(ordine_id: str) -> bool:
+    """Elimina un ordine"""
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM ordini_righe WHERE ordine_id = ?", (ordine_id,))
+        conn.execute("DELETE FROM ordini WHERE id = ?", (ordine_id,))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+# ============================================
+# PROMEMORIA
+# ============================================
+
+def get_promemoria(solo_attivi: bool = True, cliente_id: str = None) -> List[Dict]:
+    """Ottiene i promemoria"""
+    conn = get_connection()
+    try:
+        query = """
+            SELECT p.*, c.ragione_sociale AS cliente_nome
+            FROM promemoria p
+            LEFT JOIN clienti c ON p.cliente_id = c.id
+            WHERE 1=1
+        """
+        params = []
+        
+        if solo_attivi:
+            query += " AND p.completato = 0"
+        
+        if cliente_id:
+            query += " AND p.cliente_id = ?"
+            params.append(cliente_id)
+        
+        query += " ORDER BY p.data_scadenza ASC"
+        
+        rows = conn.execute(query, params).fetchall()
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
+def save_promemoria(data: Dict) -> str:
+    """Salva o aggiorna un promemoria"""
+    conn = get_connection()
+    try:
+        if 'id' in data and data['id']:
+            promemoria_id = data['id']
+            fields = []
+            values = []
+            for key, value in data.items():
+                if key != 'id' and key != 'created_at' and key != 'cliente_nome':
+                    fields.append(f"{key} = ?")
+                    values.append(value)
+            values.append(promemoria_id)
+            
+            query = f"UPDATE promemoria SET {', '.join(fields)} WHERE id = ?"
+            conn.execute(query, values)
+        else:
+            promemoria_id = generate_id()
+            data['id'] = promemoria_id
+            data['created_at'] = datetime.now().isoformat()
+            
+            insert_data = {k: v for k, v in data.items() if k != 'cliente_nome'}
+            
+            fields = list(insert_data.keys())
+            placeholders = ', '.join(['?' for _ in fields])
+            query = f"INSERT INTO promemoria ({', '.join(fields)}) VALUES ({placeholders})"
+            conn.execute(query, list(insert_data.values()))
+        
+        conn.commit()
+        return promemoria_id
+    finally:
+        conn.close()
+
+
+def completa_promemoria(promemoria_id: str) -> bool:
+    """Segna un promemoria come completato"""
+    conn = get_connection()
+    try:
+        conn.execute("""
+            UPDATE promemoria 
+            SET completato = 1, data_completamento = ? 
+            WHERE id = ?
+        """, (datetime.now().isoformat(), promemoria_id))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+def delete_promemoria(promemoria_id: str) -> bool:
+    """Elimina un promemoria"""
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM promemoria WHERE id = ?", (promemoria_id,))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
+# ============================================
+# VISITE
+# ============================================
+
+def get_visite_pianificate(data_da: str = None, data_a: str = None, solo_non_completate: bool = True) -> List[Dict]:
+    """Ottiene le visite pianificate"""
+    conn = get_connection()
+    try:
+        query = """
+            SELECT vp.*, c.ragione_sociale AS cliente_nome, c.indirizzo AS cliente_indirizzo,
+                   c.citta AS cliente_citta, c.provincia AS cliente_provincia, c.telefono AS cliente_telefono
+            FROM visite_pianificate vp
+            LEFT JOIN clienti c ON vp.cliente_id = c.id
+            WHERE 1=1
+        """
+        params = []
+        
+        if solo_non_completate:
+            query += " AND vp.completata = 0"
+        
+        if data_da:
+            query += " AND vp.data_pianificata >= ?"
+            params.append(data_da)
+        
+        if data_a:
+            query += " AND vp.data_pianificata <= ?"
+            params.append(data_a)
+        
+        query += " ORDER BY vp.data_pianificata ASC, vp.ora_inizio ASC"
+        
+        rows = conn.execute(query, params).fetchall()
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
+def save_visita_pianificata(data: Dict) -> str:
+    """Salva una visita pianificata"""
+    conn = get_connection()
+    try:
+        if 'id' in data and data['id']:
+            visita_id = data['id']
+            fields = []
+            values = []
+            for key, value in data.items():
+                if key != 'id' and key != 'created_at' and not key.startswith('cliente_'):
+                    fields.append(f"{key} = ?")
+                    values.append(value)
+            values.append(visita_id)
+            
+            query = f"UPDATE visite_pianificate SET {', '.join(fields)} WHERE id = ?"
+            conn.execute(query, values)
+        else:
+            visita_id = generate_id()
+            data['id'] = visita_id
+            data['created_at'] = datetime.now().isoformat()
+            
+            insert_data = {k: v for k, v in data.items() if not k.startswith('cliente_')}
+            
+            fields = list(insert_data.keys())
+            placeholders = ', '.join(['?' for _ in fields])
+            query = f"INSERT INTO visite_pianificate ({', '.join(fields)}) VALUES ({placeholders})"
+            conn.execute(query, list(insert_data.values()))
+        
+        conn.commit()
+        return visita_id
+    finally:
+        conn.close()
+
+
+# ============================================
+# AGENTE
+# ============================================
+
+def get_agente() -> Optional[Dict]:
+    """Ottiene i dati dell'agente"""
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT * FROM agente LIMIT 1").fetchone()
+        return row_to_dict(row)
+    finally:
+        conn.close()
+
+
+def save_agente(data: Dict) -> str:
+    """Salva i dati dell'agente"""
+    conn = get_connection()
+    try:
+        # Verifica se esiste già
+        existing = conn.execute("SELECT id FROM agente LIMIT 1").fetchone()
+        
+        if existing:
+            agente_id = existing['id']
+            fields = []
+            values = []
+            for key, value in data.items():
+                if key != 'id' and key != 'created_at':
+                    fields.append(f"{key} = ?")
+                    values.append(value)
+            fields.append("updated_at = ?")
+            values.append(datetime.now().isoformat())
+            values.append(agente_id)
+            
+            query = f"UPDATE agente SET {', '.join(fields)} WHERE id = ?"
+            conn.execute(query, values)
+        else:
+            agente_id = generate_id()
+            data['id'] = agente_id
+            data['created_at'] = datetime.now().isoformat()
+            data['updated_at'] = datetime.now().isoformat()
+            
+            fields = list(data.keys())
+            placeholders = ', '.join(['?' for _ in fields])
+            query = f"INSERT INTO agente ({', '.join(fields)}) VALUES ({placeholders})"
+            conn.execute(query, list(data.values()))
+        
+        conn.commit()
+        return agente_id
+    finally:
+        conn.close()
+
+
+# ============================================
+# STATISTICHE E REPORT
+# ============================================
+
+def get_statistiche_dashboard() -> Dict:
+    """Ottiene le statistiche per la dashboard"""
+    conn = get_connection()
+    try:
+        stats = {}
+        
+        # Totale clienti attivi
+        row = conn.execute("SELECT COUNT(*) as cnt FROM clienti WHERE attivo = 1").fetchone()
+        stats['totale_clienti'] = row['cnt']
+        
+        # Totale aziende attive
+        row = conn.execute("SELECT COUNT(*) as cnt FROM aziende WHERE attivo = 1").fetchone()
+        stats['totale_aziende'] = row['cnt']
+        
+        # Totale prodotti
+        row = conn.execute("SELECT COUNT(*) as cnt FROM prodotti WHERE disponibile = 1").fetchone()
+        stats['totale_prodotti'] = row['cnt']
+        
+        # Ordini mese corrente
+        primo_mese = date.today().replace(day=1).isoformat()
+        row = conn.execute("""
+            SELECT COUNT(*) as cnt, COALESCE(SUM(totale_finale), 0) as totale
+            FROM ordini 
+            WHERE data_ordine >= ? AND stato != 'annullato'
+        """, (primo_mese,)).fetchone()
+        stats['ordini_mese'] = row['cnt']
+        stats['fatturato_mese'] = row['totale']
+        
+        # Ordini anno corrente
+        primo_anno = date.today().replace(month=1, day=1).isoformat()
+        row = conn.execute("""
+            SELECT COUNT(*) as cnt, COALESCE(SUM(totale_finale), 0) as totale
+            FROM ordini 
+            WHERE data_ordine >= ? AND stato != 'annullato'
+        """, (primo_anno,)).fetchone()
+        stats['ordini_anno'] = row['cnt']
+        stats['fatturato_anno'] = row['totale']
+        
+        # Promemoria scaduti
+        oggi = date.today().isoformat()
+        row = conn.execute("""
+            SELECT COUNT(*) as cnt FROM promemoria 
+            WHERE completato = 0 AND data_scadenza < ?
+        """, (oggi,)).fetchone()
+        stats['promemoria_scaduti'] = row['cnt']
+        
+        # Promemoria oggi
+        row = conn.execute("""
+            SELECT COUNT(*) as cnt FROM promemoria 
+            WHERE completato = 0 AND data_scadenza = ?
+        """, (oggi,)).fetchone()
+        stats['promemoria_oggi'] = row['cnt']
+        
+        # Visite oggi
+        row = conn.execute("""
+            SELECT COUNT(*) as cnt FROM visite_pianificate 
+            WHERE completata = 0 AND data_pianificata = ?
+        """, (oggi,)).fetchone()
+        stats['visite_oggi'] = row['cnt']
+        
+        return stats
+    finally:
+        conn.close()
+
+
+def get_fatturato_per_azienda(anno: int = None) -> List[Dict]:
+    """Ottiene il fatturato raggruppato per azienda"""
+    conn = get_connection()
+    try:
+        if anno is None:
+            anno = date.today().year
+        
+        primo_anno = f"{anno}-01-01"
+        ultimo_anno = f"{anno}-12-31"
+        
+        rows = conn.execute("""
+            SELECT a.id, a.nome,
+                   COUNT(DISTINCT o.id) as num_ordini,
+                   COALESCE(SUM(o.totale_finale), 0) as fatturato
+            FROM aziende a
+            LEFT JOIN ordini o ON a.id = o.azienda_id 
+                AND o.data_ordine BETWEEN ? AND ?
+                AND o.stato IN ('inviato', 'confermato', 'evaso')
+            WHERE a.attivo = 1
+            GROUP BY a.id, a.nome
+            ORDER BY fatturato DESC
+        """, (primo_anno, ultimo_anno)).fetchall()
+        
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
+def get_fatturato_per_cliente(anno: int = None, limit: int = 20) -> List[Dict]:
+    """Ottiene il fatturato raggruppato per cliente"""
+    conn = get_connection()
+    try:
+        if anno is None:
+            anno = date.today().year
+        
+        primo_anno = f"{anno}-01-01"
+        ultimo_anno = f"{anno}-12-31"
+        
+        rows = conn.execute(f"""
+            SELECT c.id, c.ragione_sociale, c.citta, c.provincia,
+                   COUNT(DISTINCT o.id) as num_ordini,
+                   COALESCE(SUM(o.totale_finale), 0) as fatturato,
+                   MAX(o.data_ordine) as ultimo_ordine
+            FROM clienti c
+            LEFT JOIN ordini o ON c.id = o.cliente_id 
+                AND o.data_ordine BETWEEN ? AND ?
+                AND o.stato IN ('inviato', 'confermato', 'evaso')
+            WHERE c.attivo = 1
+            GROUP BY c.id, c.ragione_sociale, c.citta, c.provincia
+            HAVING fatturato > 0
+            ORDER BY fatturato DESC
+            LIMIT {limit}
+        """, (primo_anno, ultimo_anno)).fetchall()
+        
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
+def get_fatturato_per_mese(anno: int = None) -> List[Dict]:
+    """Ottiene il fatturato mensile"""
+    conn = get_connection()
+    try:
+        if anno is None:
+            anno = date.today().year
+        
+        rows = conn.execute("""
+            SELECT strftime('%m', data_ordine) as mese,
+                   COUNT(*) as num_ordini,
+                   SUM(totale_finale) as fatturato
+            FROM ordini
+            WHERE strftime('%Y', data_ordine) = ?
+                AND stato IN ('inviato', 'confermato', 'evaso')
+            GROUP BY strftime('%m', data_ordine)
+            ORDER BY mese
+        """, (str(anno),)).fetchall()
+        
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
+def get_top_prodotti(anno: int = None, limit: int = 10) -> List[Dict]:
+    """Ottiene i prodotti più venduti"""
+    conn = get_connection()
+    try:
+        if anno is None:
+            anno = date.today().year
+        
+        primo_anno = f"{anno}-01-01"
+        ultimo_anno = f"{anno}-12-31"
+        
+        rows = conn.execute(f"""
+            SELECT p.id, p.codice, p.nome, a.nome as azienda_nome,
+                   SUM(r.quantita_totale) as quantita_venduta,
+                   SUM(r.importo_riga) as fatturato
+            FROM ordini_righe r
+            JOIN ordini o ON r.ordine_id = o.id
+            JOIN prodotti p ON r.prodotto_id = p.id
+            JOIN aziende a ON p.azienda_id = a.id
+            WHERE o.data_ordine BETWEEN ? AND ?
+                AND o.stato IN ('inviato', 'confermato', 'evaso')
+            GROUP BY p.id, p.codice, p.nome, a.nome
+            ORDER BY fatturato DESC
+            LIMIT {limit}
+        """, (primo_anno, ultimo_anno)).fetchall()
+        
+        return rows_to_list(rows)
+    finally:
+        conn.close()
+
+
+# ============================================
+# INIZIALIZZAZIONE
+# ============================================
+
+# Inizializza il database all'import del modulo
+if not os.path.exists(DB_PATH):
+    init_db()
