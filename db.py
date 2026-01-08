@@ -46,6 +46,7 @@ def init_db():
         try:
             conn.execute("SELECT 1 FROM appuntamenti LIMIT 1")
         except Exception:
+            # tabella completamente assente
             try:
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS appuntamenti (
@@ -63,6 +64,28 @@ def init_db():
                 """)
             except Exception:
                 pass
+
+        # B2) Appuntamenti: migrazione colonne (DB vecchi con schema diverso)
+        try:
+            app_cols = {r['name'] for r in conn.execute("PRAGMA table_info(appuntamenti)").fetchall()}
+            # colonne minime richieste dalla UI calendario
+            required = {
+                'id': "TEXT",
+                'titolo': "TEXT",
+                'data': "DATE",
+                'ora': "TEXT",
+                'cliente_id': "TEXT",
+                'luogo': "TEXT",
+                'note': "TEXT",
+                'created_at': "TIMESTAMP",
+                'updated_at': "TIMESTAMP",
+            }
+            for col, ctype in required.items():
+                if col not in app_cols:
+                    # SQLite consente solo ADD COLUMN; se mancano created/updated li aggiungiamo senza default
+                    conn.execute(f"ALTER TABLE appuntamenti ADD COLUMN {col} {ctype}")
+        except Exception:
+            pass
 
         # --- MIGRAZIONI/REGOLA COMMERCIALE ---
         # Cartone fisso: 6 pezzi per tutti i prodotti.

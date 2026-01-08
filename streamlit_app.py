@@ -74,6 +74,8 @@ st.set_page_config(
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    /* Material Icons: necessario per le icone native Streamlit (expander, ecc.) */
+    @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
     
     :root {
         --primary: #1e3a5f;
@@ -102,6 +104,27 @@ st.markdown("""
     
     * {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    }
+
+    /* FIX iOS: alcune icone Streamlit (Material Icons) venivano renderizzate come testo
+       es: "keyboard_arrow_right". Forziamo il font corretto per tutte le classi Material. */
+    .material-icons,
+    .material-icons-outlined,
+    .material-symbols-outlined,
+    .material-symbols-rounded,
+    .material-symbols-sharp,
+    i.material-icons,
+    span.material-icons {
+        font-family: 'Material Icons' !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        line-height: 1 !important;
+        letter-spacing: normal !important;
+        text-transform: none !important;
+        white-space: nowrap !important;
+        direction: ltr !important;
+        -webkit-font-feature-settings: 'liga' !important;
+        -webkit-font-smoothing: antialiased !important;
     }
     
     /* Main container */
@@ -586,6 +609,11 @@ st.markdown("""
     .streamlit-expanderHeader {
         font-weight: 500 !important;
         font-size: 0.9rem !important;
+        white-space: normal !important;
+        line-height: 1.25 !important;
+    }
+    div[data-testid="stExpander"] summary {
+        align-items: flex-start !important;
     }
     
     /* Product row in order */
@@ -1098,6 +1126,19 @@ def render_aziende():
     
     # Lista aziende
     aziende = db.get_aziende()
+
+    # Apertura catalogo SOLO da menu a tendina (niente bottoni "Apri" in lista)
+    if aziende:
+        id_to_nome = {a["id"]: a.get("nome", "") for a in aziende}
+        sel_id = st.selectbox(
+            "Apri catalogo",
+            options=[""] + list(id_to_nome.keys()),
+            format_func=lambda _id: "— Seleziona azienda —" if _id == "" else id_to_nome.get(_id, ""),
+            label_visibility="collapsed",
+        )
+        if sel_id:
+            st.session_state.selected_azienda_view = sel_id
+            st.rerun()
     
     if not aziende:
         st.markdown("""
@@ -1113,16 +1154,16 @@ def render_aziende():
         for azienda in aziende:
             num_prodotti = len(db.get_prodotti(azienda_id=azienda['id']))
 
-            c_logo, c_info, c_btn = st.columns([1, 6, 1])
+            # Niente sigle (C4/MS) e niente bottone "Apri"
+            c_logo, c_info = st.columns([1, 8])
             with c_logo:
                 if azienda.get('logo_b64'):
                     st.image(_b64_to_bytes(azienda['logo_b64']), width=44)
                 else:
-                    ini = _initials(azienda.get('nome', '')) or "AZ"
                     st.markdown(
                         f"""
                         <div style='width:44px;height:44px;border-radius:12px;background:#111827;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;'>
-                            {ini}
+                            🏭
                         </div>
                         """,
                         unsafe_allow_html=True,
@@ -1144,12 +1185,6 @@ def render_aziende():
                     """,
                     unsafe_allow_html=True,
                 )
-
-            with c_btn:
-                # Un solo bottone per evitare sovrapposizioni su schermi diversi
-                if st.button("Apri", key=f"prod_{azienda['id']}", use_container_width=True, type="primary"):
-                    st.session_state.selected_azienda_view = azienda['id']
-                    st.rerun()
     
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     render_bottom_nav()
@@ -2423,16 +2458,20 @@ def render_calendario():
                             ora_str = ora_t.strftime("%H:%M")
                     except Exception:
                         ora_str = None
-                    db.save_appuntamento({
-                        'titolo': titolo,
-                        'data': picked.isoformat(),
-                        'ora': ora_str,
-                        'cliente_id': cliente_id or None,
-                        'luogo': luogo,
-                        'note': note,
-                    })
-                    st.success("Appuntamento salvato")
-                    st.rerun()
+                    try:
+                        db.save_appuntamento({
+                            'titolo': titolo,
+                            'data': picked.isoformat(),
+                            'ora': ora_str,
+                            'cliente_id': cliente_id or None,
+                            'luogo': luogo,
+                            'note': note,
+                        })
+                        st.success("Appuntamento salvato")
+                        st.rerun()
+                    except Exception as e:
+                        # Evita crash su Streamlit Cloud e mostra errore leggibile
+                        st.error(f"Errore salvataggio appuntamento: {e}")
 
     # --- ELENCO ---
     if view == "Elenco":
